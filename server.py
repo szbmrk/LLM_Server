@@ -110,7 +110,7 @@ def handle_incoming_client_info(client_socket):
 
 def handle_commands():
     while server_running.is_set():
-        command = input("Enter command: ").strip().lower()
+        command = input("Enter command: ").strip()
         if command == "show clients":
             with clients_lock:
                 if clients:
@@ -122,6 +122,7 @@ def handle_commands():
         elif command == "close server":
             server_running.clear()
             print("Server is shutting down...")
+            break
         elif command.startswith("send message"):
             parts = command.split()
             if len(parts) < 5:
