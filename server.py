@@ -1,7 +1,6 @@
 import socket
 import threading
 import json
-import sys
 import queue
 
 clients = []
@@ -16,6 +15,7 @@ class Client:
             "RAM": ""
         }
         self.client_socket = None
+        self.send_lock = threading.Lock()
 
     def set_client_info(self, model, RAM):
         self.client_info['model'] = model
@@ -53,18 +53,11 @@ def handle_client(client_socket, client_address, client_info):
 
     print(f"Connection with {client_address} ({client_info}) closed.")
 
-def send_message_to_client(model, ram, message):
-    client_info = None
-    client_socket = None
+def send_message_to_client(client, message):
+    client_socket = client.client_socket
+    client_info = client.client_info
 
-    with clients_lock:
-        for client in clients:
-            if client.client_info['model'] == model and client.client_info['RAM'] == ram:
-                client_info = client.client_info
-                client_socket = client.client_socket
-                break
-
-    if client_socket:
+    with client.send_lock:
         try:
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
@@ -84,9 +77,6 @@ def send_message_to_client(model, ram, message):
         except Exception as e:
             print(f"Error communicating with {client_info}: {e}")
             return False
-    else:
-        print(f"Client with info '{model}, {ram}' not found.")
-        return False
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -162,10 +152,13 @@ def process_command(command):
             model = parts[2]
             ram = parts[3]
             message = " ".join(parts[4:])
-            if send_message_to_client(model, ram, message):
-                print("Message sent successfully and response received.")
-            else:
-                print("Failed to send message or receive response.")
+            with clients_lock:
+                for client in clients:
+                    if client.client_info['model'] == model and client.client_info['RAM'] == ram:
+                        threading.Thread(target=send_message_to_client, args=(client, message)).start()
+                        print(f"Message to {client.client_info}: {message} queued for sending.")
+            # If no matching client found, `send_message_to_client` won't be called
+
     else:
         print("Unknown command. Type 'help' for a list of available commands.")
 
