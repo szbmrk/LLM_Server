@@ -58,17 +58,20 @@ def send_message_to_client(client, message):
     client_info = client.client_info
 
     with client.send_lock:
-        client_socket.sendall(message.encode('utf-8'))
-        print(f"Sent message to {client_info}: {message}")
+        try:
+            client_socket.sendall(message.encode('utf-8'))
+            print(f"Sent message to {client_info}: {message}")
 
-        response = client_socket.recv(1024).decode('utf-8')
-        if response:
-            print(f"Received response from {client_info}: {response}")
-            return True
-        else:
-            print(f"No response from {client_info}")
+            response = client_socket.recv(1024).decode('utf-8')
+            if response:
+                print(f"{client_info}: {response}")
+                return True
+            else:
+                print(f"No response from {client_info}")
+                return False
+        except:
             return False
-
+        
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
