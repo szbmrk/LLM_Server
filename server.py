@@ -48,7 +48,6 @@ def handle_client(client_socket, client_address, client_info):
             break
 
     if len(clients) == 0:
-        global isClientConnected
         isClientConnected = False
 
     print(f"Connection with {client_address} ({client_info}) closed.")
