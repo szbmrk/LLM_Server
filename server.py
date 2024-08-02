@@ -160,3 +160,4 @@ if __name__ == "__main__":
             client.client_socket.close()
     
     print("Server has been shut down.")
+    sys.exit(0)
