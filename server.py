@@ -62,17 +62,12 @@ def send_message_to_client(client, message):
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
-            client_socket.settimeout(5.0)  # Set a timeout for recv to prevent blocking
-            try:
-                response = client_socket.recv(1024).decode('utf-8')
-                if response:
-                    print(f"Received response from {client_info}: {response}")
-                    return True
-                else:
-                    print(f"No response from {client_info}")
-                    return False
-            except socket.timeout:
-                print(f"Timeout waiting for response from {client_info}")
+            response = client_socket.recv(1024).decode('utf-8')
+            if response:
+                print(f"Received response from {client_info}: {response}")
+                return True
+            else:
+                print(f"No response from {client_info}")
                 return False
         except Exception as e:
             print(f"Error communicating with {client_info}: {e}")
