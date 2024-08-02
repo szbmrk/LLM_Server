@@ -1,9 +1,15 @@
 import socket
+import json
 
-def start_client(server_ip, server_port, client_info):
+def start_client(server_ip, server_port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((server_ip, server_port))
     
+    with open('client_info.json', 'r') as file:
+        client_info = json.load(file)
+
+    client_info = json.dumps(client_info)
+
     # Send initial information to the server
     client.send(client_info.encode('utf-8'))
     
@@ -21,5 +27,4 @@ def start_client(server_ip, server_port, client_info):
 if __name__ == "__main__":
     server_ip = '142.93.207.109'  # Server IP address
     server_port = 9999          # Port server is listening on
-    client_info = "LLama3"  # Replace with actual client info
-    start_client(server_ip, server_port, client_info)
+    start_client(server_ip, server_port)

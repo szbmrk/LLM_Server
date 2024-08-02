@@ -1,5 +1,6 @@
 import socket
 import threading
+import json
 
 # Dictionary to store client information and their sockets
 clients_info = {}
@@ -21,8 +22,16 @@ def handle_client(client_socket, client_address, client_info):
     del clients_info[client_info]
     print(f"Connection with {client_address} ({client_info}) closed.")
 
-def send_message_to_client(client_info, message):
-    client_socket = clients_info.get(client_info)
+def send_message_to_client(model, message):
+    client_info = None
+    client_socket = None
+
+    for info, socket in clients_info.items():
+        if info['model'] == model:
+            client_info = info
+            client_socket = socket
+            break
+
     if client_socket:
         try:
             client_socket.send(message.encode('utf-8'))
@@ -51,7 +60,7 @@ def start_server(host, port):
     
     while True:
         client_socket, client_address = server.accept()
-        client_info = client_socket.recv(1024).decode('utf-8')
+        client_info = json.loads(client_socket.recv(1024).decode('utf-8'))
         clients_info[client_info] = client_socket
         client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client_info))
         client_handler.start()
