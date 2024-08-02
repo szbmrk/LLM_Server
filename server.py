@@ -1,80 +1,97 @@
-import asyncio
+import socket
+import threading
 import json
+import sys
+import queue
 
-clients = {}
-clients_lock = asyncio.Lock()
-server_running = True
+clients = []
+clients_lock = threading.Lock()
+server_running = threading.Event()
+command_queue = queue.Queue()
 
-async def handle_client(reader, writer):
-    try:
-        client_info_json = await reader.read(1024)
-        client_info = json.loads(client_info_json.decode('utf-8'))
-        print(f"Connection established with info: {client_info}")
+class Client:
+    def __init__(self):
+        self.client_info = {
+            "model": "",
+            "RAM": ""
+        }
+        self.client_socket = None
 
-        async with clients_lock:
-            clients[(client_info['model'], client_info['RAM'])] = writer
+    def set_client_info(self, model, RAM):
+        self.client_info['model'] = model
+        self.client_info['RAM'] = RAM
 
-        while server_running:
-            try:
-                data = await asyncio.wait_for(reader.read(1024), timeout=1.0)
-                if not data:
-                    break
-                print(f"Received from {client_info}: {data.decode('utf-8')}")
-            except asyncio.TimeoutError:
-                continue
-            except Exception as e:
-                print(f"Error receiving from {client_info}: {e}")
+    def set_client_socket(self, client_socket):
+        self.client_socket = client_socket
+
+    def __eq__(self, other):
+        return self.client_info == other.client_info
+
+def handle_client(client_socket, client_address, client_info):
+    print(f"Connection from {client_address} has been established with info: {client_info}")
+
+    while server_running.is_set():
+        try:
+            client_socket.settimeout(1.0)  # Set a timeout for recv to prevent blocking
+            response = client_socket.recv(1024).decode('utf-8')
+            if not response:
+                break
+            print(f"Received from {client_info}: {response}")
+        except socket.timeout:
+            continue
+        except Exception as e:
+            print(f"Error receiving from {client_info}: {e}")
+            break
+    
+    client_socket.close()
+
+    with clients_lock:
+        for client in clients:
+            if client.client_info == client_info:
+                clients.remove(client)
                 break
 
-    except json.JSONDecodeError as e:
-        print(f"Failed to decode client info: {e}")
+    print(f"Connection with {client_address} ({client_info}) closed.")
 
-    finally:
-        writer.close()
-        await writer.wait_closed()
+def send_message_to_client(model, ram, message):
+    client_info = None
+    client_socket = None
 
-        async with clients_lock:
-            clients.pop((client_info['model'], client_info['RAM']), None)
+    with clients_lock:
+        for client in clients:
+            if client.client_info['model'] == model and client.client_info['RAM'] == ram:
+                client_info = client.client_info
+                client_socket = client.client_socket
+                break
 
-        print(f"Connection with {client_info} closed.")
+    if client_socket:
+        try:
+            client_socket.sendall(message.encode('utf-8'))
+            print(f"Sent message to {client_info}: {message}")
 
-async def start_server(host, port):
-    server = await asyncio.start_server(handle_client, host, port)
-    addr = server.sockets[0].getsockname()
-    print(f'Serving on {addr}')
-
-    async with server:
-        await server.serve_forever()
-
-async def send_message_to_client(model, ram, message):
-    async with clients_lock:
-        writer = clients.get((model, ram))
-        if writer:
+            client_socket.settimeout(5.0)  # Set a timeout for recv to prevent blocking
             try:
-                writer.write(message.encode('utf-8'))
-                await writer.drain()
-                print(f"Sent message to {model}, {ram}: {message}")
-
-                # Use a separate StreamReader to read the response
-                reader = asyncio.StreamReader()
-                response = await asyncio.wait_for(reader.read(1024), timeout=5.0)
-                print(f"Received response from {model}, {ram}: {response.decode('utf-8')}")
-                return True
-            except asyncio.TimeoutError:
-                print(f"Timeout waiting for response from {model}, {ram}")
+                response = client_socket.recv(1024).decode('utf-8')
+                if response:
+                    print(f"Received response from {client_info}: {response}")
+                    return True
+                else:
+                    print(f"No response from {client_info}")
+                    return False
+            except socket.timeout:
+                print(f"Timeout waiting for response from {client_info}")
                 return False
-            except Exception as e:
-                print(f"Error communicating with {model}, {ram}: {e}")
-                return False
-        else:
-            print(f"Client with info '{model}, {ram}' not found.")
+        except Exception as e:
+            print(f"Error communicating with {client_info}: {e}")
             return False
+    else:
+        print(f"Client with info '{model}, {ram}' not found.")
+        return False
 
 async def handle_commands():
     global server_running
     while server_running:
-        command = await asyncio.to_thread(input, "Enter command: ")
-        command = command.strip()
+        command = await asyncio.get_event_loop().run_in_executor(None, input, "Enter command: ").strip()
         if command == "show clients":
             async with clients_lock:
                 if clients:
@@ -108,14 +125,20 @@ async def handle_commands():
             print("Unknown command. Type 'help' for a list of available commands.")
 
 async def main():
-    host = '0.0.0.0'
+    host = '142.93.207.109'
     port = 9999
     
-    server_task = asyncio.create_task(start_server(host, port))
-    command_task = asyncio.create_task(handle_commands())
+    server_thread = threading.Thread(target=start_server, args=(host, port))
+    server_thread.start()
     
-    await asyncio.gather(server_task, command_task)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    command_thread = threading.Thread(target=handle_commands)
+    command_thread.start()
+    
+    input_thread = threading.Thread(target=input_thread)
+    input_thread.start()
+    
+    input_thread.join()
+    command_thread.join()
+    server_thread.join()
+    
     print("Server has been shut down.")
