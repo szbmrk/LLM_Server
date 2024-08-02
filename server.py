@@ -1,7 +1,6 @@
 import socket
 import threading
 import json
-import sys
 
 clients = []
 clients_lock = threading.Lock()
@@ -84,29 +83,37 @@ def start_server(host, port):
     server.listen(5)
     print(f"Server listening on {host}:{port}")
     server_running.set()
-    
-    while server_running.is_set():
-        try:
-            client_socket, client_address = server.accept()
-            client = handle_incoming_client_info(client_socket)
-            client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
-            client_handler.start()
-        except:
-            break
-    
-    server.close()
-    print("Server closed.")
+
+    try:
+        while server_running.is_set():
+            try:
+                server.settimeout(1)
+                client_socket, client_address = server.accept()
+                client = handle_incoming_client_info(client_socket)
+                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
+                client_handler.start()
+            except socket.timeout:
+                continue
+            except Exception as e:
+                print(f"Error accepting connection: {e}")
+    finally:
+        server.close()
+        print("Server closed.")
 
 def handle_incoming_client_info(client_socket):
-    client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
-    client = Client()
-    client.set_client_info(client_info_json['model'], client_info_json['RAM'])
-    client.set_client_socket(client_socket)
-    
-    with clients_lock:
-        clients.append(client)
-    
-    return client
+    try:
+        client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
+        client = Client()
+        client.set_client_info(client_info_json['model'], client_info_json['RAM'])
+        client.set_client_socket(client_socket)
+        
+        with clients_lock:
+            clients.append(client)
+        
+        return client
+    except Exception as e:
+        print(f"Error handling incoming client info: {e}")
+        client_socket.close()
 
 def handle_commands():
     while server_running.is_set():
