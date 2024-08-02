@@ -4,11 +4,13 @@ import json
 
 clients = []
 
+isClientConnected = False
+
 class Client:
     def __init__(self):
         self.client_info = {
             "model": "",
-            "RAM": 0
+            "RAM": ""
         }
         self.client_socket = None
         self.client_address = None
@@ -26,7 +28,8 @@ class Client:
 
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
-    
+    isClientConnected = True
+
     while True:
         try:
             response = client_socket.recv(1024).decode('utf-8')
@@ -42,6 +45,9 @@ def handle_client(client_socket, client_address, client_info):
         if client.client_info == client_info:
             clients.remove(client)
             break
+
+    if len(clients) == 0:
+        isClientConnected = False
 
     print(f"Connection with {client_address} ({client_info}) closed.")
 
@@ -104,9 +110,9 @@ if __name__ == "__main__":
     threading.Thread(target=start_server, args=(host, port)).start()
     
     while True:
-        if len(clients) > 0:
+        if isClientConnected:
             model = input("Enter MODEL to send a message: ")
-            ram = int(input("Enter RAM of the client: "))
+            ram = input("Enter RAM of the client: ")
             message = input("Enter message to send: ")
             if send_message_to_client(model, ram, message):
                 print("Message sent successfully and response received.")
