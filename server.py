@@ -58,19 +58,15 @@ def send_message_to_client(client, message):
     client_info = client.client_info
 
     with client.send_lock:
-        try:
-            client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {client_info}: {message}")
+        client_socket.sendall(message.encode('utf-8'))
+        print(f"Sent message to {client_info}: {message}")
 
-            response = client_socket.recv(1024).decode('utf-8')
-            if response:
-                print(f"Received response from {client_info}: {response}")
-                return True
-            else:
-                print(f"No response from {client_info}")
-                return False
-        except Exception as e:
-            print(f"Error communicating with {client_info}: {e}")
+        response = client_socket.recv(1024).decode('utf-8')
+        if response:
+            print(f"Received response from {client_info}: {response}")
+            return True
+        else:
+            print(f"No response from {client_info}")
             return False
 
 def start_server(host, port):
@@ -151,8 +147,6 @@ def process_command(command):
                 for client in clients:
                     if client.client_info['model'] == model and client.client_info['RAM'] == ram:
                         threading.Thread(target=send_message_to_client, args=(client, message)).start()
-                        print(f"Message to {client.client_info}: {message} queued for sending.")
-            # If no matching client found, `send_message_to_client` won't be called
 
     else:
         print("Unknown command. Type 'help' for a list of available commands.")
