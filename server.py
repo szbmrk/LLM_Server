@@ -1,6 +1,7 @@
 import socket
 import threading
 import json
+import sys
 
 clients = []
 clients_lock = threading.Lock()
@@ -83,37 +84,29 @@ def start_server(host, port):
     server.listen(5)
     print(f"Server listening on {host}:{port}")
     server_running.set()
-
-    try:
-        while server_running.is_set():
-            try:
-                server.settimeout(1)
-                client_socket, client_address = server.accept()
-                client = handle_incoming_client_info(client_socket)
-                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
-                client_handler.start()
-            except socket.timeout:
-                continue
-            except Exception as e:
-                print(f"Error accepting connection: {e}")
-    finally:
-        server.close()
-        print("Server closed.")
+    
+    while server_running.is_set():
+        try:
+            client_socket, client_address = server.accept()
+            client = handle_incoming_client_info(client_socket)
+            client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
+            client_handler.start()
+        except:
+            break
+    
+    server.close()
+    print("Server closed.")
 
 def handle_incoming_client_info(client_socket):
-    try:
-        client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
-        client = Client()
-        client.set_client_info(client_info_json['model'], client_info_json['RAM'])
-        client.set_client_socket(client_socket)
-        
-        with clients_lock:
-            clients.append(client)
-        
-        return client
-    except Exception as e:
-        print(f"Error handling incoming client info: {e}")
-        client_socket.close()
+    client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
+    client = Client()
+    client.set_client_info(client_info_json['model'], client_info_json['RAM'])
+    client.set_client_socket(client_socket)
+    
+    with clients_lock:
+        clients.append(client)
+    
+    return client
 
 def handle_commands():
     while server_running.is_set():
@@ -151,7 +144,10 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=start_server, args=(host, port))
     server_thread.start()
     
-    handle_commands()
+    command_thread = threading.Thread(target=handle_commands)
+    command_thread.start()
     
     server_thread.join()
+    command_thread.join()
+    
     print("Server has been shut down.")
