@@ -2,10 +2,12 @@ import socket
 import threading
 import json
 import sys
+import queue
 
 clients = []
 clients_lock = threading.Lock()
 server_running = threading.Event()
+command_queue = queue.Queue()
 
 class Client:
     def __init__(self):
@@ -120,33 +122,41 @@ def handle_incoming_client_info(client_socket):
 
 def handle_commands():
     while server_running.is_set():
-        command = input("Enter command: ").strip()
-        if command == "show clients":
-            with clients_lock:
-                if clients:
-                    print("Connected clients:")
-                    for client in clients:
-                        print(f"Model: {client.client_info['model']}, RAM: {client.client_info['RAM']}")
+        try:
+            command = command_queue.get(timeout=1.0).strip()
+            if command == "show clients":
+                with clients_lock:
+                    if clients:
+                        print("Connected clients:")
+                        for client in clients:
+                            print(f"Model: {client.client_info['model']}, RAM: {client.client_info['RAM']}")
+                    else:
+                        print("No clients connected.")
+            elif command == "close server":
+                server_running.clear()
+                print("Server is shutting down...")
+                break
+            elif command.startswith("send message"):
+                parts = command.split()
+                if len(parts) < 5:
+                    print("Usage: send message <model> <ram> <message>")
                 else:
-                    print("No clients connected.")
-        elif command == "close server":
-            server_running.clear()
-            print("Server is shutting down...")
-            break
-        elif command.startswith("send message"):
-            parts = command.split()
-            if len(parts) < 5:
-                print("Usage: send message <model> <ram> <message>")
+                    model = parts[2]
+                    ram = parts[3]
+                    message = " ".join(parts[4:])
+                    if send_message_to_client(model, ram, message):
+                        print("Message sent successfully and response received.")
+                    else:
+                        print("Failed to send message or receive response.")
             else:
-                model = parts[2]
-                ram = parts[3]
-                message = " ".join(parts[4:])
-                if send_message_to_client(model, ram, message):
-                    print("Message sent successfully and response received.")
-                else:
-                    print("Failed to send message or receive response.")
-        else:
-            print("Unknown command.")
+                print("Unknown command.")
+        except queue.Empty:
+            continue
+
+def read_commands():
+    while server_running.is_set():
+        command = input("Enter command: ")
+        command_queue.put(command)
 
 if __name__ == "__main__":
     host = '142.93.207.109'
@@ -157,9 +167,12 @@ if __name__ == "__main__":
     
     command_thread = threading.Thread(target=handle_commands)
     command_thread.start()
+
+    input_thread = threading.Thread(target=read_commands)
+    input_thread.start()
     
+    input_thread.join()
     command_thread.join()
     server_thread.join()
     
     print("Server has been shut down.")
-    sys.exit(0)
