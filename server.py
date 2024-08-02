@@ -3,8 +3,8 @@ import threading
 import json
 
 clients = []
-
-isClientConnected = False
+clients_lock = threading.Lock()
+isClientConnected = threading.Event()
 
 class Client:
     def __init__(self):
@@ -13,7 +13,6 @@ class Client:
             "RAM": ""
         }
         self.client_socket = None
-        self.client_address = None
 
     def set_client_info(self, model, RAM):
         self.client_info['model'] = model
@@ -25,11 +24,9 @@ class Client:
     def __eq__(self, other):
         return self.client_info == other.client_info
 
-
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
-    global isClientConnected
-    isClientConnected = True
+    isClientConnected.set()
 
     while True:
         try:
@@ -42,13 +39,14 @@ def handle_client(client_socket, client_address, client_info):
     
     client_socket.close()
 
-    for client in clients:
-        if client.client_info == client_info:
-            clients.remove(client)
-            break
+    with clients_lock:
+        for client in clients:
+            if client.client_info == client_info:
+                clients.remove(client)
+                break
 
-    if len(clients) == 0:
-        isClientConnected = False
+        if len(clients) == 0:
+            isClientConnected.clear()
 
     print(f"Connection with {client_address} ({client_info}) closed.")
 
@@ -56,18 +54,18 @@ def send_message_to_client(model, ram, message):
     client_info = None
     client_socket = None
 
-    for client in clients:
-        if client.client_info['model'] == model and client.client_info['RAM'] == ram:
-            client_info = client.client_info
-            client_socket = client.client_socket
-            break
+    with clients_lock:
+        for client in clients:
+            if client.client_info['model'] == model and client.client_info['RAM'] == ram:
+                client_info = client.client_info
+                client_socket = client.client_socket
+                break
 
     if client_socket:
         try:
             client_socket.send(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
-            # Wait for the client's response
             response = client_socket.recv(1024).decode('utf-8')
             if response:
                 print(f"Received response from {client_info}: {response}")
@@ -79,7 +77,7 @@ def send_message_to_client(model, ram, message):
             print(f"Error communicating with {client_info}: {e}")
             return False
     else:
-        print(f"Client with info '{client_info}' not found.")
+        print(f"Client with info '{model}, {ram}' not found.")
         return False
 
 def start_server(host, port):
@@ -90,9 +88,7 @@ def start_server(host, port):
     
     while True:
         client_socket, client_address = server.accept()
-
         client = handle_incoming_client_info(client_socket)
-
         client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
         client_handler.start()
 
@@ -101,9 +97,11 @@ def handle_incoming_client_info(client_socket):
     client = Client()
     client.set_client_info(client_info_json['model'], client_info_json['RAM'])
     client.set_client_socket(client_socket)
-    clients.append(client)
+    
+    with clients_lock:
+        clients.append(client)
+    
     return client
-
 
 if __name__ == "__main__":
     host = '142.93.207.109'
@@ -111,7 +109,7 @@ if __name__ == "__main__":
     threading.Thread(target=start_server, args=(host, port)).start()
     
     while True:
-        if isClientConnected:
+        if isClientConnected.is_set():
             model = input("Enter MODEL to send a message: ")
             ram = input("Enter RAM of the client: ")
             message = input("Enter message to send: ")
@@ -119,3 +117,6 @@ if __name__ == "__main__":
                 print("Message sent successfully and response received.")
             else:
                 print("Failed to send message or receive response.")
+        else:
+            print("Waiting for clients to connect...")
+            isClientConnected.wait()
