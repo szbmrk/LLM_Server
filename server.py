@@ -1,10 +1,11 @@
 import socket
 import threading
 import json
+import sys
 
 clients = []
 clients_lock = threading.Lock()
-isClientConnected = threading.Event()
+server_running = threading.Event()
 
 class Client:
     def __init__(self):
@@ -26,9 +27,8 @@ class Client:
 
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
-    isClientConnected.set()
 
-    while True:
+    while server_running.is_set():
         try:
             response = client_socket.recv(1024).decode('utf-8')
             if not response:
@@ -44,9 +44,6 @@ def handle_client(client_socket, client_address, client_info):
             if client.client_info == client_info:
                 clients.remove(client)
                 break
-
-        if len(clients) == 0:
-            isClientConnected.clear()
 
     print(f"Connection with {client_address} ({client_info}) closed.")
 
@@ -66,6 +63,7 @@ def send_message_to_client(model, ram, message):
             client_socket.send(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
+            # Wait for the client's response
             response = client_socket.recv(1024).decode('utf-8')
             if response:
                 print(f"Received response from {client_info}: {response}")
@@ -85,12 +83,19 @@ def start_server(host, port):
     server.bind((host, port))
     server.listen(5)
     print(f"Server listening on {host}:{port}")
+    server_running.set()
     
-    while True:
-        client_socket, client_address = server.accept()
-        client = handle_incoming_client_info(client_socket)
-        client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
-        client_handler.start()
+    while server_running.is_set():
+        try:
+            client_socket, client_address = server.accept()
+            client = handle_incoming_client_info(client_socket)
+            client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
+            client_handler.start()
+        except:
+            break
+    
+    server.close()
+    print("Server closed.")
 
 def handle_incoming_client_info(client_socket):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
@@ -103,20 +108,43 @@ def handle_incoming_client_info(client_socket):
     
     return client
 
+def handle_commands():
+    while server_running.is_set():
+        command = input("Enter command: ").strip().lower()
+        if command == "show clients":
+            with clients_lock:
+                if clients:
+                    print("Connected clients:")
+                    for client in clients:
+                        print(f"Model: {client.client_info['model']}, RAM: {client.client_info['RAM']}")
+                else:
+                    print("No clients connected.")
+        elif command == "close server":
+            server_running.clear()
+            print("Server is shutting down...")
+        elif command.startswith("send message"):
+            parts = command.split()
+            if len(parts) < 5:
+                print("Usage: send message <model> <ram> <message>")
+            else:
+                model = parts[2]
+                ram = parts[3]
+                message = " ".join(parts[4:])
+                if send_message_to_client(model, ram, message):
+                    print("Message sent successfully and response received.")
+                else:
+                    print("Failed to send message or receive response.")
+        else:
+            print("Unknown command.")
+
 if __name__ == "__main__":
     host = '142.93.207.109'
-    port = 9999            
-    threading.Thread(target=start_server, args=(host, port)).start()
+    port = 9999
     
-    while True:
-        if isClientConnected.is_set():
-            model = input("Enter MODEL to send a message: ")
-            ram = input("Enter RAM of the client: ")
-            message = input("Enter message to send: ")
-            if send_message_to_client(model, ram, message):
-                print("Message sent successfully and response received.")
-            else:
-                print("Failed to send message or receive response.")
-        else:
-            print("Waiting for clients to connect...")
-            isClientConnected.wait()
+    server_thread = threading.Thread(target=start_server, args=(host, port))
+    server_thread.start()
+    
+    handle_commands()
+    
+    server_thread.join()
+    print("Server has been shut down.")
