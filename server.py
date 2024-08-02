@@ -123,40 +123,44 @@ def handle_incoming_client_info(client_socket):
 def handle_commands():
     while server_running.is_set():
         try:
-            command = command_queue.get(timeout=1.0).strip()
-            if command == "show clients":
-                with clients_lock:
-                    if clients:
-                        print("Connected clients:")
-                        for client in clients:
-                            print(f"Model: {client.client_info['model']}, RAM: {client.client_info['RAM']}")
-                    else:
-                        print("No clients connected.")
-            elif command == "close server":
-                server_running.clear()
-                print("Server is shutting down...")
-                break
-            elif command.startswith("send message"):
-                parts = command.split()
-                if len(parts) < 5:
-                    print("Usage: send message <model> <ram> <message>")
-                else:
-                    model = parts[2]
-                    ram = parts[3]
-                    message = " ".join(parts[4:])
-                    if send_message_to_client(model, ram, message):
-                        print("Message sent successfully and response received.")
-                    else:
-                        print("Failed to send message or receive response.")
-            else:
-                print("Unknown command.")
+            command = command_queue.get(timeout=1)
+            process_command(command)
         except queue.Empty:
             continue
 
-def read_commands():
+def process_command(command):
+    if command == "show clients":
+        with clients_lock:
+            if clients:
+                print("Connected clients:")
+                for client in clients:
+                    print(f"Model: {client.client_info['model']}, RAM: {client.client_info['RAM']}")
+            else:
+                print("No clients connected.")
+    elif command == "close server":
+        server_running.clear()
+        print("Server is shutting down...")
+    elif command.startswith("send message"):
+        parts = command.split()
+        if len(parts) < 5:
+            print("Usage: send message <model> <ram> <message>")
+        else:
+            model = parts[2]
+            ram = parts[3]
+            message = " ".join(parts[4:])
+            if send_message_to_client(model, ram, message):
+                print("Message sent successfully and response received.")
+            else:
+                print("Failed to send message or receive response.")
+    else:
+        print("Unknown command.")
+
+def input_thread():
     while server_running.is_set():
-        command = input("Enter command: ")
+        command = input("Enter command: ").strip()
         command_queue.put(command)
+        if command == "close server":
+            break
 
 if __name__ == "__main__":
     host = '142.93.207.109'
@@ -167,8 +171,8 @@ if __name__ == "__main__":
     
     command_thread = threading.Thread(target=handle_commands)
     command_thread.start()
-
-    input_thread = threading.Thread(target=read_commands)
+    
+    input_thread = threading.Thread(target=input_thread)
     input_thread.start()
     
     input_thread.join()
