@@ -87,10 +87,14 @@ def start_server(host, port):
     
     while server_running.is_set():
         try:
-            client_socket, client_address = server.accept()
-            client = handle_incoming_client_info(client_socket)
-            client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
-            client_handler.start()
+            server.settimeout(1.0)  # Set timeout to allow periodic checks of server_running
+            try:
+                client_socket, client_address = server.accept()
+                client = handle_incoming_client_info(client_socket)
+                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
+                client_handler.start()
+            except socket.timeout:
+                continue
         except:
             break
     
@@ -148,7 +152,11 @@ if __name__ == "__main__":
     command_thread = threading.Thread(target=handle_commands)
     command_thread.start()
     
-    server_thread.join()
     command_thread.join()
+    server_thread.join()
+    
+    with clients_lock:
+        for client in clients:
+            client.client_socket.close()
     
     print("Server has been shut down.")
