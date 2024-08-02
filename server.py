@@ -80,6 +80,7 @@ def send_message_to_client(model, ram, message):
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((host, port))
     server.listen(5)
     print(f"Server listening on {host}:{port}")
@@ -95,8 +96,13 @@ def start_server(host, port):
                 client_handler.start()
             except socket.timeout:
                 continue
-        except:
+        except Exception as e:
+            print(f"Error: {e}")
             break
+    
+    with clients_lock:
+        for client in clients:
+            client.client_socket.close()
     
     server.close()
     print("Server closed.")
@@ -154,10 +160,6 @@ if __name__ == "__main__":
     
     command_thread.join()
     server_thread.join()
-    
-    with clients_lock:
-        for client in clients:
-            client.client_socket.close()
     
     print("Server has been shut down.")
     sys.exit(0)
