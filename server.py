@@ -4,7 +4,7 @@ import json
 
 clients = []
 
-class client:
+class Client:
     def __init__(self):
         self.client_info = {
             "model": "",
@@ -91,7 +91,7 @@ def start_server(host, port):
 
 def handle_incoming_client_info(client_socket):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
-    client = client()
+    client = Client()
     client.set_client_info(client_info_json['model'], client_info_json['RAM'])
     client.set_client_socket(client_socket)
     clients.append(client)
