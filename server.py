@@ -29,7 +29,6 @@ def handle_client(client_socket, client_address, client_info):
     
     while True:
         try:
-            # Receive response from the client
             response = client_socket.recv(1024).decode('utf-8')
             if not response:
                 break
@@ -38,15 +37,20 @@ def handle_client(client_socket, client_address, client_info):
             break
     
     client_socket.close()
-    del cleints[client_info]
+
+    for client in clients:
+        if client.client_info == client_info:
+            clients.remove(client)
+            break
+
     print(f"Connection with {client_address} ({client_info}) closed.")
 
-def send_message_to_client(model, message):
+def send_message_to_client(model, ram, message):
     client_info = None
     client_socket = None
 
     for client in clients:
-        if client.client_info['model'] == model:
+        if client.client_info['model'] == model and client.client_info['RAM'] == ram:
             client_info = client.client_info
             client_socket = client.client_socket
             break
@@ -80,30 +84,30 @@ def start_server(host, port):
     while True:
         client_socket, client_address = server.accept()
 
-        client_info = handle_incoming_client_info(client_socket)
+        client = handle_incoming_client_info(client_socket)
 
-        client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client_info))
+        client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
         client_handler.start()
 
 def handle_incoming_client_info(client_socket):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
-    client_info = client()
-    client_info.set_client_info(client_info_json['model'], client_info_json['RAM'])
-    client_info.set_client_socket(client_socket)
-    clients.append(client_info)
-    return client_info
+    client = client()
+    client.set_client_info(client_info_json['model'], client_info_json['RAM'])
+    client.set_client_socket(client_socket)
+    clients.append(client)
+    return client
 
 
 if __name__ == "__main__":
-    host = '142.93.207.109'  # Server IP address
-    port = 9999            # Port to listen on
+    host = '142.93.207.109'
+    port = 9999            
     threading.Thread(target=start_server, args=(host, port)).start()
     
-    # Interactive loop for the server operator to send messages
-    while True:
-        client_info = input("Enter client info to send a message: ")
+    while clients > 0:
+        model = input("Enter MODEL to send a message: ")
+        ram = int(input("Enter RAM of the client: "))
         message = input("Enter message to send: ")
-        if send_message_to_client(client_info, message):
+        if send_message_to_client(model, ram, message):
             print("Message sent successfully and response received.")
         else:
             print("Failed to send message or receive response.")
