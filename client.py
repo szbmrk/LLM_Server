@@ -1,11 +1,16 @@
 import socket
 import json
+import sys
 
 def start_client(server_ip, server_port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((server_ip, server_port))
-    
-    with open('client_info.json', 'r') as file:
+
+    file_index = 0
+    if len(sys.argv) > 1:
+        file_index = int(sys.argv[1])
+
+    with open(f"client_info{str(file_index)}.json", 'r') as file:
         client_info = json.load(file)
 
     client_info = json.dumps(client_info)
