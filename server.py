@@ -103,7 +103,7 @@ if __name__ == "__main__":
     port = 9999            
     threading.Thread(target=start_server, args=(host, port)).start()
     
-    while clients > 0:
+    while len(clients) > 0:
         model = input("Enter MODEL to send a message: ")
         ram = int(input("Enter RAM of the client: "))
         message = input("Enter message to send: ")
