@@ -1,7 +1,6 @@
 import socket
 import json
 import sys
-import time
 
 def start_client(server_ip, server_port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,8 +23,7 @@ def start_client(server_ip, server_port):
             break
         print(f"Received from server: {message}")
         
-        time.sleep(1)
-        response = f"{client_info}: ping"
+        response = f"ping"
         client.send(response.encode('utf-8'))
 
 if __name__ == "__main__":
