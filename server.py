@@ -2,8 +2,27 @@ import socket
 import threading
 import json
 
-# Dictionary to store client information and their sockets
-clients_info = {}
+clients = []
+
+class client:
+    def __init__(self):
+        self.client_info = {
+            "model": "",
+            "RAM": 0
+        }
+        self.client_socket = None
+        self.client_address = None
+
+    def set_client_info(self, model, RAM):
+        self.client_info['model'] = model
+        self.client_info['RAM'] = RAM
+
+    def set_client_socket(self, client_socket):
+        self.client_socket = client_socket
+
+    def __eq__(self, other):
+        return self.client_info == other.client_info
+
 
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
@@ -19,17 +38,17 @@ def handle_client(client_socket, client_address, client_info):
             break
     
     client_socket.close()
-    del clients_info[client_info]
+    del cleints[client_info]
     print(f"Connection with {client_address} ({client_info}) closed.")
 
 def send_message_to_client(model, message):
     client_info = None
     client_socket = None
 
-    for info, socket in clients_info.items():
-        if info['model'] == model:
-            client_info = info
-            client_socket = socket
+    for client in clients:
+        if client.client_info['model'] == model:
+            client_info = client.client_info
+            client_socket = client.client_socket
             break
 
     if client_socket:
@@ -60,10 +79,20 @@ def start_server(host, port):
     
     while True:
         client_socket, client_address = server.accept()
-        client_info = json.loads(client_socket.recv(1024).decode('utf-8'))
-        clients_info[client_info] = client_socket
+
+        client_info = handle_incoming_client_info(client_socket)
+
         client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client_info))
         client_handler.start()
+
+def handle_incoming_client_info(client_socket):
+    client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
+    client_info = client()
+    client_info.set_client_info(client_info_json['model'], client_info_json['RAM'])
+    client_info.set_client_socket(client_socket)
+    clients.append(client_info)
+    return client_info
+
 
 if __name__ == "__main__":
     host = '142.93.207.109'  # Server IP address
