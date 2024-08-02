@@ -123,7 +123,7 @@ def handle_incoming_client_info(client_socket):
 def handle_commands():
     while server_running.is_set():
         try:
-            command = command_queue.get(timeout=1.0).strip()
+            command = command_queue.get(timeout=1)
             if command == "show clients":
                 with clients_lock:
                     if clients:
@@ -153,9 +153,9 @@ def handle_commands():
         except queue.Empty:
             continue
 
-def read_commands():
+def input_thread():
     while server_running.is_set():
-        command = input("Enter command: ")
+        command = input("Enter command: ").strip()
         command_queue.put(command)
 
 if __name__ == "__main__":
@@ -167,12 +167,12 @@ if __name__ == "__main__":
     
     command_thread = threading.Thread(target=handle_commands)
     command_thread.start()
-
-    input_thread = threading.Thread(target=read_commands)
+    
+    input_thread = threading.Thread(target=input_thread)
     input_thread.start()
     
-    input_thread.join()
     command_thread.join()
+    input_thread.join()
     server_thread.join()
     
     print("Server has been shut down.")
