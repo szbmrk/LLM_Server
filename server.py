@@ -103,11 +103,12 @@ if __name__ == "__main__":
     port = 9999            
     threading.Thread(target=start_server, args=(host, port)).start()
     
-    while len(clients) > 0:
-        model = input("Enter MODEL to send a message: ")
-        ram = int(input("Enter RAM of the client: "))
-        message = input("Enter message to send: ")
-        if send_message_to_client(model, ram, message):
-            print("Message sent successfully and response received.")
-        else:
-            print("Failed to send message or receive response.")
+    while True:
+        if len(clients) > 0:
+            model = input("Enter MODEL to send a message: ")
+            ram = int(input("Enter RAM of the client: "))
+            message = input("Enter message to send: ")
+            if send_message_to_client(model, ram, message):
+                print("Message sent successfully and response received.")
+            else:
+                print("Failed to send message or receive response.")
