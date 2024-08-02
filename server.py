@@ -32,11 +32,15 @@ def handle_client(client_socket, client_address, client_info):
 
     while server_running.is_set():
         try:
+            client_socket.settimeout(1.0)  # Set a timeout for recv to prevent blocking
             response = client_socket.recv(1024).decode('utf-8')
             if not response:
                 break
             print(f"Received from {client_info}: {response}")
-        except:
+        except socket.timeout:
+            continue
+        except Exception as e:
+            print(f"Error receiving from {client_info}: {e}")
             break
     
     client_socket.close()
@@ -62,16 +66,20 @@ def send_message_to_client(model, ram, message):
 
     if client_socket:
         try:
-            client_socket.send(message.encode('utf-8'))
+            client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
-            # Wait for the client's response
-            response = client_socket.recv(1024).decode('utf-8')
-            if response:
-                print(f"Received response from {client_info}: {response}")
-                return True
-            else:
-                print(f"No response from {client_info}")
+            client_socket.settimeout(5.0)  # Set a timeout for recv to prevent blocking
+            try:
+                response = client_socket.recv(1024).decode('utf-8')
+                if response:
+                    print(f"Received response from {client_info}: {response}")
+                    return True
+                else:
+                    print(f"No response from {client_info}")
+                    return False
+            except socket.timeout:
+                print(f"Timeout waiting for response from {client_info}")
                 return False
         except Exception as e:
             print(f"Error communicating with {client_info}: {e}")
