@@ -56,7 +56,7 @@ async def send_message_to_client(model, ram, message):
                 print(f"Sent message to {model}, {ram}: {message}")
 
                 try:
-                    response = await asyncio.wait_for(writer.drain(), timeout=5.0)
+                    response = await asyncio.wait_for(writer.read(1024), timeout=5.0)
                     print(f"Received response from {model}, {ram}: {response.decode('utf-8')}")
                     return True
                 except asyncio.TimeoutError:
@@ -73,7 +73,7 @@ async def send_message_to_client(model, ram, message):
 async def handle_commands():
     global server_running
     while server_running:
-        command = await asyncio.get_event_loop().run_in_executor(None, input, "Enter command: ").strip()
+        command = await asyncio.to_thread(input, "Enter command: ").strip()
         if command == "show clients":
             async with clients_lock:
                 if clients:
