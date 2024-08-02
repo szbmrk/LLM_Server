@@ -140,6 +140,12 @@ def process_command(command):
     elif command == "close server":
         server_running.clear()
         print("Server is shutting down...")
+    elif command == "help":
+        print("Available commands:")
+        print("show clients")
+        print("send message <model> <ram> <message>")
+        print("close server")
+        print("help")
     elif command.startswith("send message"):
         parts = command.split()
         if len(parts) < 5:
@@ -153,14 +159,12 @@ def process_command(command):
             else:
                 print("Failed to send message or receive response.")
     else:
-        print("Unknown command.")
+        print("Unknown command. Type 'help' for a list of available commands.")
 
 def input_thread():
     while server_running.is_set():
         command = input("Enter command: ").strip()
         command_queue.put(command)
-        if command == "close server":
-            break
 
 if __name__ == "__main__":
     host = '142.93.207.109'
