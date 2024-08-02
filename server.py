@@ -73,7 +73,8 @@ async def send_message_to_client(model, ram, message):
 async def handle_commands():
     global server_running
     while server_running:
-        command = await asyncio.to_thread(input, "Enter command: ").strip()
+        command = await asyncio.to_thread(input, "Enter command: ")
+        command = command.strip()
         if command == "show clients":
             async with clients_lock:
                 if clients:
