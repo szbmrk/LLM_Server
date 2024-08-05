@@ -1,6 +1,7 @@
 import socket
 import json
 import sys
+import requests
 
 def start_client(server_ip, server_port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -13,6 +14,7 @@ def start_client(server_ip, server_port):
     with open(f"client_info{str(file_index)}.json", 'r') as file:
         client_info = json.load(file)
 
+    port = client_info["port"]
     client_info = json.dumps(client_info)
 
     client.send(client_info.encode('utf-8'))
@@ -21,9 +23,15 @@ def start_client(server_ip, server_port):
         message = client.recv(1024).decode('utf-8')
         if not message:
             break
-        print(f"Received from server: {message}")
         
-        response = f"ping"
+        url = f"http://127.0.0.1:{port}/completion"
+        data = {
+            "prompt": message,
+            "n_predict": 512,
+        }
+        response = requests.post(url, data=json.dumps(data))
+
+        response = response.json()['content']
         client.send(response.encode('utf-8'))
 
 if __name__ == "__main__":

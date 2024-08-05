@@ -1,4 +1,5 @@
 {
     "model": "LLama3",
-    "RAM": "8GB"
+    "RAM": "8GB",
+    "port": "8080"
 }
