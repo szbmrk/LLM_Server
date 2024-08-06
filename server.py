@@ -65,6 +65,7 @@ def send_message_to_client(client, message):
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
+            client_socket.settimeout(10.0)
             response = client_socket.recv(1024).decode('utf-8')
             if response:
                 print(f"{client_info}: {response}")
@@ -72,6 +73,9 @@ def send_message_to_client(client, message):
             else:
                 print(f"No response from {client_info}")
                 return "No response"
+        except socket.timeout:
+            print(f"Timeout while waiting for response from {client_info}")
+            return "Timeout"
         except Exception as e:
             print(f"Error sending message to {client_info}: {e}")
             return str(e)
@@ -86,7 +90,7 @@ def start_server(host, port):
     
     while server_running.is_set():
         try:
-            server.settimeout(1.0)  # Set timeout to allow periodic checks of server_running
+            server.settimeout(1.0)
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket)
@@ -153,7 +157,6 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
-    
     server_thread.join()
     flask_thread.join()
     
