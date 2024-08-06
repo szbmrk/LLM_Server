@@ -2,6 +2,9 @@ import socket
 import threading
 import json
 import queue
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
 
 clients = []
 clients_lock = threading.Lock()
@@ -112,52 +115,32 @@ def handle_incoming_client_info(client_socket):
     
     return client
 
-def handle_commands():
-    while server_running.is_set():
-        try:
-            command = command_queue.get(timeout=1)
-            process_command(command)
-        except queue.Empty:
-            continue
+@app.route('/clients', methods=['GET'])
+def get_clients():
+    with clients_lock:
+        clients_list = [{"model": client.client_info['model'], "RAM": client.client_info['RAM']} for client in clients]
+    return jsonify(clients_list)
 
-def process_command(command):
-    if command == "show clients":
-        with clients_lock:
-            if clients:
-                print("Connected clients:")
-                for client in clients:
-                    print(f"Model: {client.client_info['model']}, RAM: {client.client_info['RAM']}")
-            else:
-                print("No clients connected.")
-    elif command == "close server":
-        server_running.clear()
-        print("Server is shutting down...")
-    elif command == "help":
-        print("Available commands:")
-        print("show clients")
-        print("send message <model> <ram> <message>")
-        print("close server")
-        print("help")
-    elif command.startswith("send message"):
-        parts = command.split()
-        if len(parts) < 5:
-            print("Usage: send message <model> <ram> <message>")
-        else:
-            model = parts[2]
-            ram = parts[3]
-            message = " ".join(parts[4:])
-            with clients_lock:
-                for client in clients:
-                    if client.client_info['model'] == model and client.client_info['RAM'] == ram:
-                        threading.Thread(target=send_message_to_client, args=(client, message)).start()
+@app.route('/send_message', methods=['POST'])
+def api_send_message():
+    data = request.json
+    model = data.get('model')
+    ram = data.get('ram')
+    message = data.get('message')
+    with clients_lock:
+        for client in clients:
+            if client.client_info['model'] == model and client.client_info['RAM'] == ram:
+                threading.Thread(target=send_message_to_client, args=(client, message)).start()
+                return jsonify({"status": "Message sent"}), 200
+    return jsonify({"error": "Client not found"}), 404
 
-    else:
-        print("Unknown command. Type 'help' for a list of available commands.")
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    server_running.clear()
+    return jsonify({"status": "Server is shutting down..."}), 200
 
-def input_thread():
-    while server_running.is_set():
-        command = input("Enter command: ").strip()
-        command_queue.put(command)
+def run_flask():
+    app.run(host='0.0.0.0', port=5000)
 
 if __name__ == "__main__":
     host = '142.93.207.109'
@@ -166,14 +149,10 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=start_server, args=(host, port))
     server_thread.start()
     
-    command_thread = threading.Thread(target=handle_commands)
-    command_thread.start()
-    
-    input_thread = threading.Thread(target=input_thread)
-    input_thread.start()
-    
-    input_thread.join()
-    command_thread.join()
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+
     server_thread.join()
+    flask_thread.join()
     
     print("Server has been shut down.")
