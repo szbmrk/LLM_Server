@@ -13,18 +13,18 @@ command_queue = queue.Queue()
 
 class Client:
     def __init__(self):
+        self.client_address = None
         self.client_socket = None
         self.send_lock = threading.Lock()
-
-    def set_client_info(self, model, RAM):
-        self.client_info['model'] = model
-        self.client_info['RAM'] = RAM
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
 
+    def set_client_address(self, client_address):
+        self.client_address = client_address
+
     def __eq__(self, other):
-        return self.client_info == other.client_info
+        return self.client_socket == other.client_socket
 
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
@@ -36,7 +36,7 @@ def handle_client(client_socket, client_address, client_info):
 
     with clients_lock:
         for client in clients:
-            if client.client_info == client_info:
+            if client.client_address == client_address:
                 clients.remove(client)
                 break
 
@@ -79,7 +79,7 @@ def start_server(host, port):
             server.settimeout(1.0)
             try:
                 client_socket, client_address = server.accept()
-                client = handle_incoming_client_info(client_socket)
+                client = handle_incoming_client_info(client_socket, client_address)
                 client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
                 client_handler.start()
             except socket.timeout:
@@ -95,10 +95,11 @@ def start_server(host, port):
     server.close()
     print("Server closed.")
 
-def handle_incoming_client_info(client_socket):
+def handle_incoming_client_info(client_socket, client_address):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
     client = Client()
     client.set_client_socket(client_socket)
+    client.set_client_address(client_address)
     
     with clients_lock:
         clients.append(client)
