@@ -68,12 +68,13 @@ def send_message_to_client(client, message):
             response = client_socket.recv(1024).decode('utf-8')
             if response:
                 print(f"{client_info}: {response}")
-                return True
+                return response
             else:
                 print(f"No response from {client_info}")
-                return False
-        except:
-            return False
+                return "No response"
+        except Exception as e:
+            print(f"Error sending message to {client_info}: {e}")
+            return str(e)
         
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -130,8 +131,8 @@ def api_send_message():
     with clients_lock:
         for client in clients:
             if client.client_info['model'] == model and client.client_info['RAM'] == ram:
-                threading.Thread(target=send_message_to_client, args=(client, message)).start()
-                return jsonify({"status": "Message sent"}), 200
+                response = send_message_to_client(client, message)
+                return jsonify({"status": "Message sent", "response": response}), 200
     return jsonify({"error": "Client not found"}), 404
 
 @app.route('/shutdown', methods=['POST'])
@@ -140,7 +141,7 @@ def shutdown():
     return jsonify({"status": "Server is shutting down..."}), 200
 
 def run_flask():
-    app.run(host='0.0.0.0', port=9998)
+    app.run(host='0.0.0.0', port=5000)
 
 if __name__ == "__main__":
     host = '142.93.207.109'
@@ -152,6 +153,7 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
+    
     server_thread.join()
     flask_thread.join()
     
