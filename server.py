@@ -80,7 +80,7 @@ def start_server(host, port):
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket, client_address)
-                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
+                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, "client info"))
                 client_handler.start()
             except socket.timeout:
                 continue
