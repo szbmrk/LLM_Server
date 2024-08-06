@@ -34,17 +34,7 @@ def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
 
     while server_running.is_set():
-        try:
-            client_socket.settimeout(1.0)  # Set a timeout for recv to prevent blocking
-            response = client_socket.recv(1024).decode('utf-8')
-            if not response:
-                break
-            print(f"Received from {client_info}: {response}")
-        except socket.timeout:
-            continue
-        except Exception as e:
-            print(f"Error receiving from {client_info}: {e}")
-            break
+        continue
     
     client_socket.close()
 
