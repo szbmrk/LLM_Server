@@ -13,10 +13,6 @@ command_queue = queue.Queue()
 
 class Client:
     def __init__(self):
-        self.client_info = {
-            "model": "",
-            "RAM": ""
-        }
         self.client_socket = None
         self.send_lock = threading.Lock()
 
@@ -102,7 +98,6 @@ def start_server(host, port):
 def handle_incoming_client_info(client_socket):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
     client = Client()
-    client.set_client_info(client_info_json['model'], client_info_json['RAM'])
     client.set_client_socket(client_socket)
     
     with clients_lock:
@@ -113,7 +108,7 @@ def handle_incoming_client_info(client_socket):
 @app.route('/clients', methods=['GET'])
 def get_clients():
     with clients_lock:
-        clients_list = [{"model": client.client_info['model'], "RAM": client.client_info['RAM']} for client in clients]
+        clients_list = [client for client in clients]
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
@@ -124,9 +119,11 @@ def api_send_message():
     message = data.get('message')
     with clients_lock:
         for client in clients:
+            """"
             if client.client_info['model'] == model and client.client_info['RAM'] == ram:
                 response = send_message_to_client(client, message)
                 return jsonify({"status": "Message sent", "response": response}), 200
+            """
     return jsonify({"error": "Client not found"}), 404
 
 @app.route('/shutdown', methods=['POST'])
