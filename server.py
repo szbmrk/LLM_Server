@@ -34,6 +34,13 @@ def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
 
     while server_running.is_set():
+        try:
+            data = client_socket.recv(1024)
+            if not data:
+                break
+        except Exception as e:
+            print(f"Error receiving data from {client_info}: {e}")
+            break
         continue
     
     client_socket.close()
