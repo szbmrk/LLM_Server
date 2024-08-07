@@ -4,6 +4,7 @@ import platform
 import requests
 import time
 import psutil
+import os
 
 def get_size(bytes, suffix="B"):
     factor = 1024
@@ -23,6 +24,16 @@ def get_vram_info():
         return get_size(0), get_size(0)
     else:
         return get_size(0), get_size(0)
+    
+def get_models():
+    models = []
+    for model in os.listdir("models"):
+        if model.endswith(".gguf") and model != "example_model.gguf":
+            models.append(get_model_info_from_filename(model))
+    return models
+
+def get_model_info_from_filename(filename):
+    return { "model_name": filename }
 
 def start_client(server_ip, server_port):
     while True:
@@ -32,6 +43,7 @@ def start_client(server_ip, server_port):
 
             total_ram, free_ram = get_ram_info()
             total_vram, free_vram = get_vram_info()
+            models = get_models()
 
             client_info = {
                 "ram_info": {
@@ -42,6 +54,7 @@ def start_client(server_ip, server_port):
                     "total_vram": total_vram,
                     "free_vram": free_vram,
                 },
+                "models": models,
             }
 
             client_info_json = json.dumps(client_info)
