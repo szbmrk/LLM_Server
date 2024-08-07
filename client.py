@@ -8,6 +8,9 @@ import os
 import subprocess
 
 def get_size(bytes, suffix="B"):
+    if not bytes:
+        return "0 B"
+
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
         if bytes < factor:
