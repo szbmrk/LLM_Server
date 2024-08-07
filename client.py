@@ -8,9 +8,6 @@ import os
 import subprocess
 
 def get_size(bytes, suffix="B"):
-    if not bytes:
-        return "0 B"
-
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
         if bytes < factor:
@@ -37,7 +34,7 @@ def get_vram_info():
             
             return get_size(total_vram_nvidia), get_size(free_vram_nvidia)
 
-        except subprocess.CalledProcessError:
+        except:
             vram_info = get_size(0), get_size(0)
 
         try:
@@ -49,7 +46,7 @@ def get_vram_info():
             ).decode('utf-8').strip().split('\n')
             
             return get_size(total_vram_amd), get_size(free_vram_amd)
-        except subprocess.CalledProcessError:
+        except:
             vram_info = get_size(0), get_size(0)
 
         return vram_info
