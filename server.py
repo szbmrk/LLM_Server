@@ -15,7 +15,11 @@ class Client:
     def __init__(self):
         self.client_address = None
         self.client_socket = None
+        self.client_info = None
         self.send_lock = threading.Lock()
+
+    def set_client_info(self, client_info):
+        self.client_info = client_info
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
@@ -80,7 +84,7 @@ def start_server(host, port):
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket, client_address)
-                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, "client info"))
+                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
                 client_handler.start()
             except socket.timeout:
                 continue
@@ -99,6 +103,7 @@ def handle_incoming_client_info(client_socket, client_address):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
     print(f"Received client info from {client_address}: {client_info_json}")
     client = Client()
+    client.set_client_info(client_info_json)
     client.set_client_socket(client_socket)
     client.set_client_address(client_address)
     
@@ -116,17 +121,10 @@ def get_clients():
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
-    model = data.get('model')
-    ram = data.get('ram')
-    message = data.get('message')
+    prompt = data.get('prompt')
     with clients_lock:
-        for client in clients:
-            """"
-            if client.client_info['model'] == model and client.client_info['RAM'] == ram:
-                response = send_message_to_client(client, message)
-                return jsonify({"status": "Message sent", "response": response}), 200
-            """
-    return jsonify({"error": "Client not found"}), 404
+        response = send_message_to_client(clients[0], prompt)
+        return jsonify({"status": "Message sent", "response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():

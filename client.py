@@ -1,33 +1,28 @@
 import socket
 import json
-import sys
+import platform
 import requests
 import time
 import psutil
-from py3nvml.py3nvml import nvmlInit, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
+
+def get_size(bytes, suffix="B"):
+    factor = 1024
+    for unit in ["", "K", "M", "G", "T", "P"]:
+        if bytes < factor:
+            return f"{bytes:.2f} {unit}{suffix}"
+        bytes /= factor
 
 def get_ram_info():
-    total_ram = psutil.virtual_memory().total
-    available_ram = psutil.virtual_memory().available
-    return total_ram, available_ram
+    svmem = psutil.virtual_memory()
+    return get_size(svmem.total), get_size(svmem.available)
 
 def get_vram_info():
-    try:
-        nvmlInit()
-        device_count = nvmlDeviceGetCount()
-        vram_info_list = []
-        for i in range(device_count):
-            handle = nvmlDeviceGetHandleByIndex(i)
-            memory_info = nvmlDeviceGetMemoryInfo(handle)
-            vram_info_list.append({
-                'total_vram': memory_info.total,
-                'used_vram': memory_info.used,
-                'free_vram': memory_info.free
-            })
-        return vram_info_list
-    except Exception as e:
-        print(f"Failed to get VRAM info: {e}")
-        return []
+    if platform.system() == "Windows":
+        return get_size(0), get_size(0)
+    elif platform.system() == "Linux":
+        return get_size(0), get_size(0)
+    else:
+        return get_size(0), get_size(0)
 
 def start_client(server_ip, server_port):
     while True:
@@ -35,13 +30,17 @@ def start_client(server_ip, server_port):
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect((server_ip, server_port))
 
-            total_ram, available_ram = get_ram_info()
-            vram_info = get_vram_info()
+            total_ram, free_ram = get_ram_info()
+            total_vram, free_vram = get_vram_info()
 
             client_info = {
                 "ram_info": {
-                    "total_ram": {total_ram / (1024**3)},
-                    "available_ram": {available_ram / (1024**3)},
+                    "total_ram": total_ram,
+                    "free_ram": free_ram,
+                },
+                "vram_info": {
+                    "total_vram": total_vram,
+                    "free_vram": free_vram,
                 },
             }
 
