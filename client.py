@@ -5,6 +5,7 @@ import requests
 import time
 import psutil
 import os
+import subprocess
 
 def get_size(bytes, suffix="B"):
     factor = 1024
@@ -21,7 +22,34 @@ def get_vram_info():
     if platform.system() == "Windows":
         return get_size(0), get_size(0)
     elif platform.system() == "Linux":
-        return get_size(0), get_size(0)
+        vram_info = 0, 0
+
+        try:
+            total_vram_nvidia = subprocess.check_output(
+                "nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits", shell=True
+            ).decode('utf-8').strip().split('\n')
+            free_vram_nvidia = subprocess.check_output(
+                "nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits", shell=True
+            ).decode('utf-8').strip().split('\n')
+            
+            return get_size(total_vram_nvidia), get_size(free_vram_nvidia)
+
+        except subprocess.CalledProcessError:
+            vram_info = get_size(0), get_size(0)
+
+        try:
+            total_vram_amd = subprocess.check_output(
+                "rocm-smi --showtotalmem | grep 'Total Memory' | awk '{print $4}'", shell=True
+            ).decode('utf-8').strip().split('\n')
+            free_vram_amd = subprocess.check_output(
+                "rocm-smi --showmemuse | grep 'Free Memory' | awk '{print $4}'", shell=True
+            ).decode('utf-8').strip().split('\n')
+            
+            return get_size(total_vram_amd), get_size(free_vram_amd)
+        except subprocess.CalledProcessError:
+            vram_info = get_size(0), get_size(0)
+
+        return vram_info
     else:
         return get_size(0), get_size(0)
     
