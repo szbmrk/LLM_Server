@@ -97,6 +97,7 @@ def start_server(host, port):
 
 def handle_incoming_client_info(client_socket, client_address):
     client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
+    print(f"Received client info from {client_address}: {client_info_json}")
     client = Client()
     client.set_client_socket(client_socket)
     client.set_client_address(client_address)

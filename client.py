@@ -7,11 +7,9 @@ import psutil
 from py3nvml.py3nvml import nvmlInit, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
 
 def get_ram_info():
-    ram_info = psutil.virtual_memory()
-    return {
-        'total_ram': ram_info.total,
-        'available_ram': ram_info.available,
-    }
+    total_ram = psutil.virtual_memory().total
+    available_ram = psutil.virtual_memory().available
+    return total_ram, available_ram
 
 def get_vram_info():
     try:
@@ -37,12 +35,14 @@ def start_client(server_ip, server_port):
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect((server_ip, server_port))
 
-            ram_info = get_ram_info()
+            total_ram, available_ram = get_ram_info()
             vram_info = get_vram_info()
 
             client_info = {
-                "ram_info": ram_info,
-                "vram_info": vram_info,
+                "ram_info": {
+                    "total_ram": {total_ram / (1024**3)},
+                    "available_ram": {available_ram / (1024**3)},
+                },
             }
 
             client_info_json = json.dumps(client_info)
