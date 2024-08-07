@@ -142,7 +142,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=9998)
 
 if __name__ == "__main__":
-    host = '142.93.207.109'
+    host = '0.0.0.0'
     port = 9999
     
     server_thread = threading.Thread(target=start_server, args=(host, port))
