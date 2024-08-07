@@ -115,7 +115,7 @@ def handle_incoming_client_info(client_socket, client_address):
 @app.route('/clients', methods=['GET'])
 def get_clients():
     with clients_lock:
-        clients_list = [client.info for client in clients]
+        clients_list = [client.client_info for client in clients]
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
