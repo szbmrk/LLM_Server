@@ -20,10 +20,12 @@ def get_ram_info():
 
 def get_vram_info():
     if platform.system() == "Windows":
-        return get_size(0), get_size(0)
+        total_vram = int(input("Enter the total VRAM of your GPU in GB: "))
+        free_vram = int(input("Enter the free VRAM of your GPU in GB: "))
+        return get_size(total_vram), get_size(free_vram)
+    
     elif platform.system() == "Linux":
         vram_info = 0, 0
-
         try:
             total_vram_nvidia = subprocess.check_output(
                 "nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits", shell=True
@@ -94,14 +96,13 @@ def start_client(server_ip, server_port):
                     if not message:
                         break
                     
-                    port = 8080 
-                    url = f"http://127.0.0.1:{port}/completion"
-                    data = {
-                        "prompt": message,
-                        "n_predict": 32,
-                    }
-                    response = requests.post(url, data=json.dumps(data))
-                    response = response.json()['content']
+                    response = ""
+
+                    data = json.loads(message)
+                    model = data["model"]
+                    prompt = data["prompt"]
+                    context = data["context"]
+
                     client.send(response.encode('utf-8'))
                 except (socket.error, requests.exceptions.RequestException) as e:
                     print(f"Error during message handling: {e}")

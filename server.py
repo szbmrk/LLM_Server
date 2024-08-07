@@ -53,12 +53,17 @@ def handle_client(client_socket, client_address, client_info):
 
     print(f"Connection with {client_address} ({client_info}) closed.")
 
-def send_message_to_client(client, message):
+def send_message_to_client(client, model, prompt, context):
     client_socket = client.client_socket
     client_info = client.client_info
 
     with client.send_lock:
         try:
+            message = json.dumps({
+                "model": model,
+                "prompt": prompt,
+                "context": context,
+            })
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
@@ -128,9 +133,11 @@ def get_clients():
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
+    model = data.get('model')
     prompt = data.get('prompt')
+    context = data.get('context')
     with clients_lock:
-        response = send_message_to_client(clients[0], prompt)
+        response = send_message_to_client(clients[0], model, prompt, context)
         return jsonify({"status": "Message sent", "response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
