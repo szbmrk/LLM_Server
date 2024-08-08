@@ -58,10 +58,10 @@ def send_message_to_client(client, model, prompt, context):
                 return "No response"
         except socket.timeout:
             print(f"Timeout while waiting for response from {client_info}")
-            return "Timeout"
+            return { "answer": "No response", "status": "Timeout" }
         except Exception as e:
             print(f"Error sending message to {client_info}: {e}")
-            return str(e)
+            return { "answer": f"Error: {e}", "status": "Error" }
         
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
