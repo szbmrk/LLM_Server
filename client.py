@@ -63,7 +63,14 @@ def get_models():
     return models
 
 def get_model_info_from_filename(filename):
-    return { "model_name": filename }
+    #read models.csv
+    with open("models.csv", "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            data = line.strip().split(";")
+            if data[0] == filename:
+                return { "filename": data[0], "tokens": data[1], "difficulty": data[2] }
+    return { "filename": filename, "tokens": "", "difficulty": "" }
 
 def start_client(server_ip, server_port):
     while True:

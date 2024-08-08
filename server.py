@@ -64,6 +64,7 @@ def send_message_to_client(client, model, prompt, context):
                 "prompt": prompt,
                 "context": context,
             })
+
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
@@ -137,7 +138,7 @@ def api_send_message():
     prompt = data.get('prompt')
     context = data.get('context')
     with clients_lock:
-        response = send_message_to_client(clients[0], model, prompt, context)
+        response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], prompt, context)
         return jsonify({"status": "Message sent", "response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
