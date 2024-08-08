@@ -67,7 +67,7 @@ def send_message_to_client(client, model, prompt, context):
             print(f"Sent message to {client_info}: {message}")
 
             try:
-                response = client.recv_queue.get(timeout=10)
+                response = client.recv_queue.get(timeout=60)
                 print(f"{client_info}: {response}")
                 return json.loads(response)
             except queue.Empty:

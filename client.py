@@ -91,6 +91,7 @@ def handle_server_message(client, message):
     except (subprocess.CalledProcessError, Exception) as e:
         response["answer"] = f"Error: {e}"
 
+    print(f"Sending response to server:\n{response}")
     client.send(json.dumps(response).encode('utf-8'))
 
 def start_client(server_ip, server_port):
