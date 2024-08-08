@@ -30,7 +30,7 @@ class Client:
     def __eq__(self, other):
         return self.client_socket == other.client_socket
 
-def handle_client(client_socket, client_address, client_info):
+def handle_client(client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
 
 def send_message_to_client(client, model, prompt, context):
@@ -77,9 +77,15 @@ def start_server(host, port):
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket, client_address)
-                client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address, client.client_info))
+                client_handler = threading.Thread(target=handle_client, args=(client_address, client.client_info))
                 client_handler.start()
-            except socket.timeout:
+            except (socket.timeout, ConnectionAbortedError, ConnectionResetError) as e:
+                if isinstance(e, (ConnectionAbortedError, ConnectionResetError)):
+                    with clients_lock:
+                        for client in clients:
+                            if client.client_socket == client_socket:
+                                clients.remove(client)
+                                break
                 continue
         except Exception as e:
             print(f"Error: {e}")
