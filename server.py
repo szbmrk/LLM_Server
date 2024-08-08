@@ -67,13 +67,12 @@ def send_message_to_client(client, model, prompt, context):
             print(f"Sent message to {client_info}: {message}")
 
             try:
-                # Attempt to retrieve the response from the queue
                 response = client.recv_queue.get(timeout=10)
                 print(f"{client_info}: {response}")
                 return json.loads(response)
             except queue.Empty:
                 print(f"Timeout while waiting for response from {client_info}")
-                return "Timeout"
+                return { "status": "Timeout" }
 
         except (socket.error, Exception) as e:
             print(f"Error sending message to {client_info}: {e}")
@@ -81,7 +80,7 @@ def send_message_to_client(client, model, prompt, context):
                 if client in clients:
                     clients.remove(client)
                     print(f"Client {client_info} removed from clients list due to error")
-            return str(e)
+            return { "status": "Error" }
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
