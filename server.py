@@ -79,13 +79,7 @@ def start_server(host, port):
                 client = handle_incoming_client_info(client_socket, client_address)
                 client_handler = threading.Thread(target=handle_client, args=(client_address, client.client_info))
                 client_handler.start()
-            except (socket.timeout, ConnectionAbortedError, ConnectionResetError) as e:
-                if isinstance(e, (ConnectionAbortedError, ConnectionResetError)):
-                    with clients_lock:
-                        for client in clients:
-                            if client.client_socket == client_socket:
-                                clients.remove(client)
-                                break
+            except socket.timeout:
                 continue
         except Exception as e:
             print(f"Error: {e}")
