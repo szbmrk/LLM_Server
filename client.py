@@ -57,8 +57,12 @@ def get_vram_info():
     
 def get_models():
     models = []
-    for model in os.listdir("models"):
-        if model.endswith(".gguf") and model != "example_model.gguf":
+    path = ""
+    with open("models_path.txt", "r") as f:
+        path = f.readline().strip()
+
+    for model in os.listdir(path):
+        if model.endswith(".gguf"):
             models.append(get_model_info_from_filename(model))
     return models
 
