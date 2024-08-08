@@ -111,6 +111,7 @@ def get_clients():
         clients_list = [client.client_info for client in clients]
     return jsonify(clients_list)
 
+@app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
     prompt = data.get('prompt')
