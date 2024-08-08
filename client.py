@@ -7,6 +7,7 @@ import psutil
 import os
 import subprocess
 import time
+from dotenv import load_dotenv
 
 def get_size(bytes, suffix="B"):
     factor = 1024
@@ -57,9 +58,7 @@ def get_vram_info():
     
 def get_models():
     models = []
-    path = ""
-    with open("models_path.txt", "r") as f:
-        path = f.readline().strip()
+    path = os.getenv('MODELS_PATH')
 
     for model in os.listdir(path):
         if model.endswith(".gguf"):
@@ -140,5 +139,6 @@ def start_client(server_ip, server_port):
 
 if __name__ == "__main__":
     server_ip = '142.93.207.109'  
-    server_port = 9999          
+    server_port = 9999    
+    load_dotenv()      
     start_client(server_ip, server_port)
