@@ -2,6 +2,7 @@ import socket
 import threading
 import json
 import queue
+from collections import defaultdict
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -16,9 +17,8 @@ class Client:
         self.client_socket = None
         self.client_info = None
         self.send_lock = threading.Lock()
-        self.recv_queue = queue.Queue()
+        self.pending_requests = defaultdict(lambda: queue.Queue())
         self.request_id = 0
-        self.pending_requests = {}
 
     def set_client_info(self, client_info):
         self.client_info = client_info
@@ -34,15 +34,13 @@ class Client:
         return self.request_id
 
     def add_pending_request(self, request_id):
-        self.pending_requests[request_id] = queue.Queue()
+        self.pending_requests[request_id]
 
     def get_pending_response(self, request_id, timeout=60):
         try:
             response = self.pending_requests[request_id].get(timeout=timeout)
-            del self.pending_requests[request_id]
             return response
         except queue.Empty:
-            del self.pending_requests[request_id]
             return {"status": "Timeout"}
 
     def put_pending_response(self, request_id, response):
@@ -50,12 +48,10 @@ class Client:
             self.pending_requests[request_id].put(response)
 
     def __str__(self):
-        address = self.client_address[0] if self.client_address else 'Unknown'
-        info = self.client_info.get('models', ['Unknown']) if self.client_info else 'No Info'
-        return f"Client(address={address}, info={info})"
+        return f"Client: {json.dumps(self.client_info)}"
 
 def handle_client(client):
-    client_info = str(client)
+    client_info = str(client)  # Use __str__ method for logging
     try:
         while server_running.is_set():
             try:
@@ -66,6 +62,7 @@ def handle_client(client):
                 message = data.decode('utf-8')
                 print(f"Received data from {client_info}: {message}")
 
+                # Check if message is a valid JSON object
                 try:
                     json_data = json.loads(message)
                     request_id = json_data.get('id')
@@ -73,12 +70,9 @@ def handle_client(client):
                         client.put_pending_response(request_id, message)
                 except json.JSONDecodeError:
                     print(f"Invalid JSON received from {client_info}: {message}")
-                    
             except socket.error as e:
                 print(f"Socket error with {client_info}: {e}")
                 break
-    except Exception as e:
-        print(f"Exception in handle_client for {client_info}: {e}")
     finally:
         with clients_lock:
             if client in clients:
@@ -112,7 +106,7 @@ def send_message_to_client(client, model, prompt, context):
                 if client in clients:
                     clients.remove(client)
                     print(f"Client {client} removed from clients list due to error")
-            return { "status": "Error" }
+            return {"status": "Error"}
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -121,7 +115,7 @@ def start_server(host, port):
     server.listen(5)
     print(f"Server listening on {host}:{port}")
     server_running.set()
-    
+
     while server_running.is_set():
         try:
             server.settimeout(1.0)
@@ -136,11 +130,11 @@ def start_server(host, port):
         except Exception as e:
             print(f"Error: {e}")
             break
-    
+
     with clients_lock:
         for client in clients:
             client.client_socket.close()
-    
+
     server.close()
     print("Server closed.")
 
@@ -158,16 +152,16 @@ def handle_incoming_client_info(client_socket, client_address):
     client.set_client_info(client_info)
     client.set_client_socket(client_socket)
     client.set_client_address(client_address)
-    
+
     with clients_lock:
         clients.append(client)
-    
+
     return client
 
 @app.route('/clients', methods=['GET'])
 def get_clients():
     with clients_lock:
-        clients_list = [str(client) for client in clients]
+        clients_list = [str(client) for client in clients]  # Use __str__ method for logging
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
@@ -193,14 +187,14 @@ def run_flask():
 if __name__ == "__main__":
     host = '0.0.0.0'
     port = 9999
-    
+
     server_thread = threading.Thread(target=start_server, args=(host, port))
     server_thread.start()
-    
+
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
     server_thread.join()
     flask_thread.join()
-    
+
     print("Server has been shut down.")
