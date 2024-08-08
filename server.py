@@ -50,13 +50,12 @@ class Client:
             self.pending_requests[request_id].put(response)
 
     def __str__(self):
-        return (f"Client(address={self.client_address}, "
-                f"info={self.client_info}, "
-                f"socket={self.client_socket}, "
-                f"pending_requests={list(self.pending_requests.keys())})")
+        address = self.client_address[0] if self.client_address else 'Unknown'
+        info = self.client_info.get('models', ['Unknown']) if self.client_info else 'No Info'
+        return f"Client(address={address}, info={info})"
 
 def handle_client(client):
-    client_info = str(client)  # Use __str__ method for logging
+    client_info = str(client)
     try:
         while server_running.is_set():
             try:
@@ -67,7 +66,6 @@ def handle_client(client):
                 message = data.decode('utf-8')
                 print(f"Received data from {client_info}: {message}")
 
-                # Check if message is a valid JSON object
                 try:
                     json_data = json.loads(message)
                     request_id = json_data.get('id')
@@ -79,6 +77,8 @@ def handle_client(client):
             except socket.error as e:
                 print(f"Socket error with {client_info}: {e}")
                 break
+    except Exception as e:
+        print(f"Exception in handle_client for {client_info}: {e}")
     finally:
         with clients_lock:
             if client in clients:
@@ -167,7 +167,7 @@ def handle_incoming_client_info(client_socket, client_address):
 @app.route('/clients', methods=['GET'])
 def get_clients():
     with clients_lock:
-        clients_list = [client.client_info for client in clients]
+        clients_list = [str(client) for client in clients]
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
