@@ -49,11 +49,14 @@ class Client:
         if request_id in self.pending_requests:
             self.pending_requests[request_id].put(response)
 
-    def __eq__(self, other):
-        return self.client_socket == other.client_socket
+    def __str__(self):
+        return (f"Client(address={self.client_address}, "
+                f"info={self.client_info}, "
+                f"socket={self.client_socket}, "
+                f"pending_requests={list(self.pending_requests.keys())})")
 
 def handle_client(client):
-    client_info = client.client_info
+    client_info = str(client)  # Use __str__ method for logging
     try:
         while server_running.is_set():
             try:
@@ -61,8 +64,18 @@ def handle_client(client):
                 if not data:
                     print(f"Client {client_info} disconnected")
                     break
-                print(f"Received data from {client_info}: {data.decode('utf-8')}")
-                client.recv_queue.put(data.decode('utf-8'))
+                message = data.decode('utf-8')
+                print(f"Received data from {client_info}: {message}")
+
+                # Check if message is a valid JSON object
+                try:
+                    json_data = json.loads(message)
+                    request_id = json_data.get('id')
+                    if request_id:
+                        client.put_pending_response(request_id, message)
+                except json.JSONDecodeError:
+                    print(f"Invalid JSON received from {client_info}: {message}")
+                    
             except socket.error as e:
                 print(f"Socket error with {client_info}: {e}")
                 break
@@ -87,18 +100,18 @@ def send_message_to_client(client, model, prompt, context):
             })
 
             client.client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {client.client_info}: {message}")
+            print(f"Sent message to {client}: {message}")
 
             response = client.get_pending_response(request_id)
-            print(f"{client.client_info}: {response}")
+            print(f"{client}: {response}")
             return response
 
         except (socket.error, Exception) as e:
-            print(f"Error sending message to {client.client_info}: {e}")
+            print(f"Error sending message to {client}: {e}")
             with clients_lock:
                 if client in clients:
                     clients.remove(client)
-                    print(f"Client {client.client_info} removed from clients list due to error")
+                    print(f"Client {client} removed from clients list due to error")
             return { "status": "Error" }
 
 def start_server(host, port):
@@ -115,8 +128,9 @@ def start_server(host, port):
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket, client_address)
-                client_handler = threading.Thread(target=handle_client, args=(client,))
-                client_handler.start()
+                if client:
+                    client_handler = threading.Thread(target=handle_client, args=(client,))
+                    client_handler.start()
             except socket.timeout:
                 continue
         except Exception as e:
@@ -131,10 +145,17 @@ def start_server(host, port):
     print("Server closed.")
 
 def handle_incoming_client_info(client_socket, client_address):
-    client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
+    client_info_json = client_socket.recv(1024).decode('utf-8')
     print(f"Received client info from {client_address}: {client_info_json}")
+    try:
+        client_info = json.loads(client_info_json)
+    except json.JSONDecodeError:
+        print(f"Invalid JSON received from {client_address}: {client_info_json}")
+        client_socket.close()
+        return None
+
     client = Client()
-    client.set_client_info(client_info_json)
+    client.set_client_info(client_info)
     client.set_client_socket(client_socket)
     client.set_client_address(client_address)
     
