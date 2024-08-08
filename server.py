@@ -64,6 +64,7 @@ def send_message_to_client(client, model, prompt, context):
             })
 
             client_socket.sendall(message.encode('utf-8'))
+            client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
             try:

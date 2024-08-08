@@ -124,6 +124,7 @@ def start_client(server_ip, server_port):
                     if not message:
                         break
                     threading.Thread(target=handle_server_message, args=(client, message)).start()
+                    
         except socket.error as e:
             print(f"Connection failed: {e}")
             time.sleep(5)
