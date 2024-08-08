@@ -2,6 +2,7 @@ import socket
 import threading
 import json
 import queue
+import select
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -23,6 +24,7 @@ class Client:
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
+        self.client_socket.setblocking(False)  # Non-blocking mode
 
     def set_client_address(self, client_address):
         self.client_address = client_address
@@ -32,6 +34,40 @@ class Client:
 
 def handle_client(client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
+
+    client = None
+    with clients_lock:
+        for c in clients:
+            if c.client_address == client_address:
+                client = c
+                break
+
+    if client is None:
+        return
+
+    def receive_messages():
+        while True:
+            try:
+                ready_to_read, _, _ = select.select([client.client_socket], [], [], 1.0)
+                if ready_to_read:
+                    data = client.client_socket.recv(1024)
+                    if not data:
+                        print(f"Client {client_info} disconnected")
+                        break
+                    print(f"Received data from {client_info}: {data.decode('utf-8')}")
+            except socket.error as e:
+                print(f"Socket error with {client_info}: {e}")
+                break
+
+        with clients_lock:
+            if client in clients:
+                clients.remove(client)
+                print(f"Client {client_info} removed from clients list")
+
+        client.client_socket.close()
+
+    recv_thread = threading.Thread(target=receive_messages)
+    recv_thread.start()
 
 def send_message_to_client(client, model, prompt, context):
     client_socket = client.client_socket
@@ -48,21 +84,27 @@ def send_message_to_client(client, model, prompt, context):
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
-            client_socket.settimeout(10.0)
-            response = client_socket.recv(1024).decode('utf-8')
-            if response:
-                print(f"{client_info}: {response}")
-                return json.loads(response)
+            ready_to_read, _, _ = select.select([client_socket], [], [], 10.0)
+            if ready_to_read:
+                response = client_socket.recv(1024).decode('utf-8')
+                if response:
+                    print(f"{client_info}: {response}")
+                    return json.loads(response)
+                else:
+                    print(f"No response from {client_info}")
+                    return "No response"
             else:
-                print(f"No response from {client_info}")
-                return "No response"
-        except socket.timeout:
-            print(f"Timeout while waiting for response from {client_info}")
-            return { "answer": "No response", "status": "Timeout" }
-        except Exception as e:
+                print(f"Timeout while waiting for response from {client_info}")
+                return "Timeout"
+
+        except (socket.error, Exception) as e:
             print(f"Error sending message to {client_info}: {e}")
-            return { "answer": f"Error: {e}", "status": "Error" }
-        
+            with clients_lock:
+                if client in clients:
+                    clients.remove(client)
+                    print(f"Client {client_info} removed from clients list due to error")
+            return str(e)
+
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
