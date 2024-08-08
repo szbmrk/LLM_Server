@@ -2,7 +2,6 @@ import socket
 import threading
 import json
 import queue
-import select
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -10,7 +9,6 @@ app = Flask(__name__)
 clients = []
 clients_lock = threading.Lock()
 server_running = threading.Event()
-command_queue = queue.Queue()
 
 class Client:
     def __init__(self):
@@ -18,13 +16,13 @@ class Client:
         self.client_socket = None
         self.client_info = None
         self.send_lock = threading.Lock()
+        self.recv_queue = queue.Queue()
 
     def set_client_info(self, client_info):
         self.client_info = client_info
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
-        self.client_socket.setblocking(False)  # Non-blocking mode
 
     def set_client_address(self, client_address):
         self.client_address = client_address
@@ -32,42 +30,26 @@ class Client:
     def __eq__(self, other):
         return self.client_socket == other.client_socket
 
-def handle_client(client_address, client_info):
-    print(f"Connection from {client_address} has been established with info: {client_info}")
-
-    client = None
-    with clients_lock:
-        for c in clients:
-            if c.client_address == client_address:
-                client = c
-                break
-
-    if client is None:
-        return
-
-    def receive_messages():
-        while True:
+def handle_client(client):
+    client_info = client.client_info
+    try:
+        while server_running.is_set():
             try:
-                ready_to_read, _, _ = select.select([client.client_socket], [], [], 1.0)
-                if ready_to_read:
-                    data = client.client_socket.recv(1024)
-                    if not data:
-                        print(f"Client {client_info} disconnected")
-                        break
-                    print(f"Received data from {client_info}: {data.decode('utf-8')}")
+                data = client.client_socket.recv(1024)
+                if not data:
+                    print(f"Client {client_info} disconnected")
+                    break
+                print(f"Received data from {client_info}: {data.decode('utf-8')}")
+                client.recv_queue.put(data.decode('utf-8'))
             except socket.error as e:
                 print(f"Socket error with {client_info}: {e}")
                 break
-
+    finally:
         with clients_lock:
             if client in clients:
                 clients.remove(client)
                 print(f"Client {client_info} removed from clients list")
-
         client.client_socket.close()
-
-    recv_thread = threading.Thread(target=receive_messages)
-    recv_thread.start()
 
 def send_message_to_client(client, model, prompt, context):
     client_socket = client.client_socket
@@ -84,16 +66,12 @@ def send_message_to_client(client, model, prompt, context):
             client_socket.sendall(message.encode('utf-8'))
             print(f"Sent message to {client_info}: {message}")
 
-            ready_to_read, _, _ = select.select([client_socket], [], [], 10.0)
-            if ready_to_read:
-                response = client_socket.recv(1024).decode('utf-8')
-                if response:
-                    print(f"{client_info}: {response}")
-                    return json.loads(response)
-                else:
-                    print(f"No response from {client_info}")
-                    return "No response"
-            else:
+            try:
+                # Attempt to retrieve the response from the queue
+                response = client.recv_queue.get(timeout=10)
+                print(f"{client_info}: {response}")
+                return json.loads(response)
+            except queue.Empty:
                 print(f"Timeout while waiting for response from {client_info}")
                 return "Timeout"
 
@@ -119,7 +97,7 @@ def start_server(host, port):
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket, client_address)
-                client_handler = threading.Thread(target=handle_client, args=(client_address, client.client_info))
+                client_handler = threading.Thread(target=handle_client, args=(client,))
                 client_handler.start()
             except socket.timeout:
                 continue
