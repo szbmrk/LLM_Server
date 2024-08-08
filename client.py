@@ -117,6 +117,8 @@ def start_client(server_ip, server_port):
                     models_path = os.getenv('MODELS_PATH')
                     if platform.system() == "Windows":
                         try:
+                            response["response"] = "test"
+                            break
                             llamacpp_path = os.getenv('LLAMACPP_PATH_Windows')
                             response["response"] = subprocess.check_output(
                                 f"{llamacpp_path} -m {models_path}\{model} -p \"{prompt}\" -c \"{context}\" -n 1000 --temp 0.1 --repeat_penalty 1.1", shell=True

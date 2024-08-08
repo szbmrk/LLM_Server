@@ -86,12 +86,8 @@ def send_message_to_client(client, model, prompt, context):
         except socket.timeout:
             print(f"Timeout while waiting for response from {client_info}")
             return "Timeout"
-        except (socket.error, Exception) as e:
+        except Exception as e:
             print(f"Error sending message to {client_info}: {e}")
-            with clients_lock:
-                if client in clients:
-                    clients.remove(client)
-                    print(f"Client {client_info} removed from clients list due to error")
             return str(e)
         
 def start_server(host, port):
