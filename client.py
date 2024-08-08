@@ -119,7 +119,7 @@ def start_client(server_ip, server_port):
                         try:
                             llamacpp_path = os.getenv('LLAMACPP_PATH_Windows')
                             response["response"] = subprocess.check_output(
-                                f"{llamacpp_path} -m {models_path}\{model} -p \"{prompt}\" -c \"{context}\"", shell=True
+                                f"{llamacpp_path} -m {models_path}\{model} -p \"{prompt}\" -c \"{context}\" -n 1000 --temp 0.1 --repeat_penalty 1.1", shell=True
                             ).decode('utf-8')
                         except subprocess.CalledProcessError as e:
                             response["response"] = f"Error: {e}"
@@ -130,7 +130,7 @@ def start_client(server_ip, server_port):
                         try:
                             llamacpp_path = os.getenv('LLAMACPP_PATH_Linux')
                             response["response"] = subprocess.check_output(
-                                f"{llamacpp_path} -m {models_path}/{model} -p \"{prompt}\" -c \"{context}\"", shell=True
+                                f"{llamacpp_path} -m {models_path}/{model} -p \"{prompt}\" -c \"{context}\" -n 1000 --temp 0.1 --repeat_penalty 1.1", shell=True
                             ).decode('utf-8')
                         except subprocess.CalledProcessError as e:
                             response["response"] = f"Error: {e}"
