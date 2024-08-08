@@ -6,6 +6,7 @@ import time
 import psutil
 import os
 import subprocess
+import time
 
 def get_size(bytes, suffix="B"):
     factor = 1024
@@ -34,7 +35,7 @@ def get_vram_info():
                 "nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits", shell=True
             ).decode('utf-8').strip().split('\n')
             
-            return get_size(total_vram_nvidia), get_size(free_vram_nvidia)
+            return f"{total_vram_nvidia} GB", f"{free_vram_nvidia} GB"
 
         except:
             vram_info = get_size(0), get_size(0)
@@ -103,13 +104,22 @@ def start_client(server_ip, server_port):
                     if not message:
                         break
                     
-                    response = ""
+                    response = {}
+
 
                     data = json.loads(message)
                     model = data["model"]
                     prompt = data["prompt"]
                     context = data["context"]
 
+                    response["model"] = model
+                    response["prompt"] = prompt
+                    response["context"] = context
+                    response["response"] = "No response"
+
+                    response = json.dumps(response)
+
+                    time.sleep(1)
                     client.send(response.encode('utf-8'))
                 except (socket.error, requests.exceptions.RequestException) as e:
                     print(f"Error during message handling: {e}")

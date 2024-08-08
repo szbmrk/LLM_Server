@@ -72,7 +72,7 @@ def send_message_to_client(client, model, prompt, context):
             response = client_socket.recv(1024).decode('utf-8')
             if response:
                 print(f"{client_info}: {response}")
-                return response
+                return json.loads(response)
             else:
                 print(f"No response from {client_info}")
                 return "No response"
