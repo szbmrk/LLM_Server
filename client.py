@@ -119,6 +119,7 @@ def start_client(server_ip, server_port):
                     response = json.dumps(response)
                     time.sleep(1)
 
+                    print(response)
                     client.send(response.encode('utf-8'))
                 except (socket.error, requests.exceptions.RequestException) as e:
                     print(f"Error during message handling: {e}")

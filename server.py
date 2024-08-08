@@ -33,19 +33,6 @@ class Client:
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
 
-    while client_socket.fileno() != -1:
-        continue
-    
-    client_socket.close()
-
-    with clients_lock:
-        for client in clients:
-            if client.client_address == client_address:
-                clients.remove(client)
-                break
-
-    print(f"Connection with {client_address} ({client_info}) closed.")
-
 def send_message_to_client(client, model, prompt, context):
     client_socket = client.client_socket
     client_info = client.client_info
@@ -124,14 +111,16 @@ def get_clients():
         clients_list = [client.client_info for client in clients]
     return jsonify(clients_list)
 
-@app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
     prompt = data.get('prompt')
     context = data.get('context')
     with clients_lock:
-        response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], prompt, context)
-        return jsonify({"status": "Message sent", "response": response}), 200
+        if clients:
+            response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], prompt, context)
+            return jsonify({"status": "Message sent", "response": response}), 200
+        else:
+            return jsonify({"status": "No clients connected"}), 400
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
