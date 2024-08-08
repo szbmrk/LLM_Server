@@ -23,7 +23,7 @@ def get_vram_info():
     if platform.system() == "Windows":
         total_vram = int(input("Enter the total VRAM of your GPU in GB: "))
         free_vram = int(input("Enter the free VRAM of your GPU in GB: "))
-        return get_size(total_vram), get_size(free_vram)
+        return f"{total_vram} GB", f"{free_vram} GB"
     
     elif platform.system() == "Linux":
         vram_info = 0, 0
@@ -35,8 +35,7 @@ def get_vram_info():
                 "nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits", shell=True
             ).decode('utf-8').strip().split('\n')
             
-            return f"{total_vram_nvidia} GB", f"{free_vram_nvidia} GB"
-
+            return get_size(total_vram_nvidia), get_size(free_vram_nvidia)
         except:
             vram_info = get_size(0), get_size(0)
 
@@ -118,8 +117,8 @@ def start_client(server_ip, server_port):
                     response["response"] = "No response"
 
                     response = json.dumps(response)
-
                     time.sleep(1)
+
                     client.send(response.encode('utf-8'))
                 except (socket.error, requests.exceptions.RequestException) as e:
                     print(f"Error during message handling: {e}")

@@ -33,14 +33,7 @@ class Client:
 def handle_client(client_socket, client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
 
-    while server_running.is_set():
-        try:
-            data = client_socket.recv(1024)
-            if not data:
-                break
-        except Exception as e:
-            print(f"Error receiving data from {client_info}: {e}")
-            break
+    while client_socket.fileno() != -1:
         continue
     
     client_socket.close()
@@ -134,7 +127,6 @@ def get_clients():
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
-    model = data.get('model')
     prompt = data.get('prompt')
     context = data.get('context')
     with clients_lock:
