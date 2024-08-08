@@ -6,6 +6,7 @@ import time
 import os
 from dotenv import load_dotenv
 import psutil
+import threading
 
 def get_size(bytes, suffix="B"):
     factor = 1024
@@ -82,12 +83,18 @@ def handle_server_message(client, message):
         models_path = os.getenv('MODELS_PATH')
         llamacpp_path = os.getenv(f'LLAMACPP_PATH_{platform.system()}')
 
+        """"
         if models_path and llamacpp_path:
             command = f"{llamacpp_path} -m {models_path}/{model} -p \"{prompt}\" -c \"{context}\" -n 50 --temp 0.1 --repeat_penalty 1.1"
             
             result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             response["answer"] = result.stdout if result.returncode == 0 else result.stderr
             response["status"] = "Success" if result.returncode == 0 else "Error"
+        """
+        time.sleep(5)
+        response["answer"] = "Success"
+        response["status"] = "Success"
+
     except (subprocess.CalledProcessError, Exception) as e:
         response["answer"] = f"Error: {e}"
 
@@ -116,9 +123,7 @@ def start_client(server_ip, server_port):
                     message = client.recv(1024).decode('utf-8')
                     if not message:
                         break
-                    
-                    handle_server_message(client, message)
-
+                    threading.Thread(target=handle_server_message, args=(client, message)).start()
         except socket.error as e:
             print(f"Connection failed: {e}")
             time.sleep(5)

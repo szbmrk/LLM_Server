@@ -17,6 +17,8 @@ class Client:
         self.client_info = None
         self.send_lock = threading.Lock()
         self.recv_queue = queue.Queue()
+        self.request_id = 0
+        self.pending_requests = {}
 
     def set_client_info(self, client_info):
         self.client_info = client_info
@@ -26,6 +28,26 @@ class Client:
 
     def set_client_address(self, client_address):
         self.client_address = client_address
+
+    def get_next_request_id(self):
+        self.request_id += 1
+        return self.request_id
+
+    def add_pending_request(self, request_id):
+        self.pending_requests[request_id] = queue.Queue()
+
+    def get_pending_response(self, request_id, timeout=60):
+        try:
+            response = self.pending_requests[request_id].get(timeout=timeout)
+            del self.pending_requests[request_id]
+            return response
+        except queue.Empty:
+            del self.pending_requests[request_id]
+            return {"status": "Timeout"}
+
+    def put_pending_response(self, request_id, response):
+        if request_id in self.pending_requests:
+            self.pending_requests[request_id].put(response)
 
     def __eq__(self, other):
         return self.client_socket == other.client_socket
@@ -52,34 +74,31 @@ def handle_client(client):
         client.client_socket.close()
 
 def send_message_to_client(client, model, prompt, context):
-    client_socket = client.client_socket
-    client_info = client.client_info
+    request_id = client.get_next_request_id()
+    client.add_pending_request(request_id)
 
     with client.send_lock:
         try:
             message = json.dumps({
+                "id": request_id,
                 "model": model,
                 "prompt": prompt,
                 "context": context,
             })
 
-            client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {client_info}: {message}")
+            client.client_socket.sendall(message.encode('utf-8'))
+            print(f"Sent message to {client.client_info}: {message}")
 
-            try:
-                response = client.recv_queue.get(timeout=60)
-                print(f"{client_info}: {response}")
-                return json.loads(response)
-            except queue.Empty:
-                print(f"Timeout while waiting for response from {client_info}")
-                return { "status": "Timeout" }
+            response = client.get_pending_response(request_id)
+            print(f"{client.client_info}: {response}")
+            return response
 
         except (socket.error, Exception) as e:
-            print(f"Error sending message to {client_info}: {e}")
+            print(f"Error sending message to {client.client_info}: {e}")
             with clients_lock:
                 if client in clients:
                     clients.remove(client)
-                    print(f"Client {client_info} removed from clients list due to error")
+                    print(f"Client {client.client_info} removed from clients list due to error")
             return { "status": "Error" }
 
 def start_server(host, port):
