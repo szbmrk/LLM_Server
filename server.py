@@ -33,6 +33,33 @@ class Client:
 def handle_client(client_address, client_info):
     print(f"Connection from {client_address} has been established with info: {client_info}")
 
+    client = None
+    with clients_lock:
+        for c in clients:
+            if c.client_address == client_address:
+                client = c
+                break
+
+    if client is None:
+        return
+
+    while True:
+        try:
+            data = client.client_socket.recv(1024)
+            if not data:
+                print(f"Client {client_info} disconnected")
+                break
+            print(f"Received data from {client_info}: {data.decode('utf-8')}")
+        except socket.error as e:
+            print(f"Socket error with {client_info}: {e}")
+            break
+
+    with clients_lock:
+        clients.remove(client)
+        print(f"Client {client_info} removed from clients list")
+
+    client.client_socket.close()
+
 def send_message_to_client(client, model, prompt, context):
     client_socket = client.client_socket
     client_info = client.client_info
@@ -59,10 +86,14 @@ def send_message_to_client(client, model, prompt, context):
         except socket.timeout:
             print(f"Timeout while waiting for response from {client_info}")
             return "Timeout"
-        except Exception as e:
+        except (socket.error, Exception) as e:
             print(f"Error sending message to {client_info}: {e}")
+            with clients_lock:
+                if client in clients:
+                    clients.remove(client)
+                    print(f"Client {client_info} removed from clients list due to error")
             return str(e)
-        
+
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

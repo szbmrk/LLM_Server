@@ -112,32 +112,39 @@ def start_client(server_ip, server_port):
                     prompt = data["prompt"]
                     context = data["context"]
 
-                    response["response"] = "No response"
+                    response["answer"] = "No response"
 
                     models_path = os.getenv('MODELS_PATH')
                     if platform.system() == "Windows":
                         try:
-                            response["response"] = "test"
-                            break
+                            response["answer"] = "test"
+                            response["status"] = "Success"
+                            """"
                             llamacpp_path = os.getenv('LLAMACPP_PATH_Windows')
                             response["response"] = subprocess.check_output(
                                 f"{llamacpp_path} -m {models_path}\{model} -p \"{prompt}\" -c \"{context}\" -n 1000 --temp 0.1 --repeat_penalty 1.1", shell=True
                             ).decode('utf-8')
+                            """
                         except subprocess.CalledProcessError as e:
-                            response["response"] = f"Error: {e}"
+                            response["answer"] = f"Error: {e}"
+                            response["status"] = "Error"
                         except Exception as e:
-                            response["response"] = f"Error: {e}"
+                            response["answer"] = f"Error: {e}"
+                            response["status"] = "Error"
 
                     elif platform.system() == "Linux":
                         try:
                             llamacpp_path = os.getenv('LLAMACPP_PATH_Linux')
-                            response["response"] = subprocess.check_output(
+                            response["answer"] = subprocess.check_output(
                                 f"{llamacpp_path} -m {models_path}/{model} -p \"{prompt}\" -c \"{context}\" -n 1000 --temp 0.1 --repeat_penalty 1.1", shell=True
                             ).decode('utf-8')
+                            response["status"] = "Success"
                         except subprocess.CalledProcessError as e:
-                            response["response"] = f"Error: {e}"
+                            response["answer"] = f"Error: {e}"
+                            response["status"] = "Error"
                         except Exception as e:
-                            response["response"] = f"Error: {e}"
+                            response["answer"] = f"Error: {e}"
+                            response["status"] = "Error"
 
                     response = json.dumps(response)
                     print(response)
