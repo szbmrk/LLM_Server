@@ -91,7 +91,7 @@ def handle_server_message(client, message):
             response["answer"] = result.stdout if result.returncode == 0 else result.stderr
             response["status"] = "Success" if result.returncode == 0 else "Error"
         """
-        time.sleep(5)
+        time.sleep(2)
         response["answer"] = "Success"
         response["status"] = "Success"
 

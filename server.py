@@ -2,7 +2,6 @@ import socket
 import threading
 import json
 import queue
-from collections import defaultdict
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -17,8 +16,7 @@ class Client:
         self.client_socket = None
         self.client_info = None
         self.send_lock = threading.Lock()
-        self.pending_requests = defaultdict(lambda: queue.Queue())
-        self.request_id = 0
+        self.recv_queue = queue.Queue()
 
     def set_client_info(self, client_info):
         self.client_info = client_info
@@ -29,29 +27,11 @@ class Client:
     def set_client_address(self, client_address):
         self.client_address = client_address
 
-    def get_next_request_id(self):
-        self.request_id += 1
-        return self.request_id
-
-    def add_pending_request(self, request_id):
-        self.pending_requests[request_id]
-
-    def get_pending_response(self, request_id, timeout=60):
-        try:
-            response = self.pending_requests[request_id].get(timeout=timeout)
-            return response
-        except queue.Empty:
-            return {"status": "Timeout"}
-
-    def put_pending_response(self, request_id, response):
-        if request_id in self.pending_requests:
-            self.pending_requests[request_id].put(response)
-
-    def __str__(self):
-        return f"Client: {json.dumps(self.client_info)}"
+    def __eq__(self, other):
+        return self.client_socket == other.client_socket
 
 def handle_client(client):
-    client_info = str(client)  # Use __str__ method for logging
+    client_info = client.client_info
     try:
         while server_running.is_set():
             try:
@@ -59,17 +39,8 @@ def handle_client(client):
                 if not data:
                     print(f"Client {client_info} disconnected")
                     break
-                message = data.decode('utf-8')
-                print(f"Received data from {client_info}: {message}")
-
-                # Check if message is a valid JSON object
-                try:
-                    json_data = json.loads(message)
-                    request_id = json_data.get('id')
-                    if request_id:
-                        client.put_pending_response(request_id, message)
-                except json.JSONDecodeError:
-                    print(f"Invalid JSON received from {client_info}: {message}")
+                print(f"Received data from {client_info}: {data.decode('utf-8')}")
+                client.recv_queue.put(data.decode('utf-8'))
             except socket.error as e:
                 print(f"Socket error with {client_info}: {e}")
                 break
@@ -81,32 +52,35 @@ def handle_client(client):
         client.client_socket.close()
 
 def send_message_to_client(client, model, prompt, context):
-    request_id = client.get_next_request_id()
-    client.add_pending_request(request_id)
+    client_socket = client.client_socket
+    client_info = client.client_info
 
     with client.send_lock:
         try:
             message = json.dumps({
-                "id": request_id,
                 "model": model,
                 "prompt": prompt,
                 "context": context,
             })
 
-            client.client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {client}: {message}")
+            client_socket.sendall(message.encode('utf-8'))
+            print(f"Sent message to {client_info}: {message}")
 
-            response = client.get_pending_response(request_id)
-            print(f"{client}: {response}")
-            return response
+            try:
+                response = client.recv_queue.get(timeout=60)
+                print(f"{client_info}: {response}")
+                return json.loads(response)
+            except queue.Empty:
+                print(f"Timeout while waiting for response from {client_info}")
+                return { "status": "Timeout" }
 
         except (socket.error, Exception) as e:
-            print(f"Error sending message to {client}: {e}")
+            print(f"Error sending message to {client_info}: {e}")
             with clients_lock:
                 if client in clients:
                     clients.remove(client)
-                    print(f"Client {client} removed from clients list due to error")
-            return {"status": "Error"}
+                    print(f"Client {client_info} removed from clients list due to error")
+            return { "status": "Error" }
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,53 +89,45 @@ def start_server(host, port):
     server.listen(5)
     print(f"Server listening on {host}:{port}")
     server_running.set()
-
+    
     while server_running.is_set():
         try:
             server.settimeout(1.0)
             try:
                 client_socket, client_address = server.accept()
                 client = handle_incoming_client_info(client_socket, client_address)
-                if client:
-                    client_handler = threading.Thread(target=handle_client, args=(client,))
-                    client_handler.start()
+                client_handler = threading.Thread(target=handle_client, args=(client,))
+                client_handler.start()
             except socket.timeout:
                 continue
         except Exception as e:
             print(f"Error: {e}")
             break
-
+    
     with clients_lock:
         for client in clients:
             client.client_socket.close()
-
+    
     server.close()
     print("Server closed.")
 
 def handle_incoming_client_info(client_socket, client_address):
-    client_info_json = client_socket.recv(1024).decode('utf-8')
+    client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
     print(f"Received client info from {client_address}: {client_info_json}")
-    try:
-        client_info = json.loads(client_info_json)
-    except json.JSONDecodeError:
-        print(f"Invalid JSON received from {client_address}: {client_info_json}")
-        client_socket.close()
-        return None
-
     client = Client()
-    client.set_client_info(client_info)
+    client.set_client_info(client_info_json)
     client.set_client_socket(client_socket)
     client.set_client_address(client_address)
-
+    
     with clients_lock:
         clients.append(client)
-
+    
     return client
 
 @app.route('/clients', methods=['GET'])
 def get_clients():
     with clients_lock:
-        clients_list = [str(client) for client in clients]  # Use __str__ method for logging
+        clients_list = [client.client_info for client in clients]
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
@@ -187,14 +153,14 @@ def run_flask():
 if __name__ == "__main__":
     host = '0.0.0.0'
     port = 9999
-
+    
     server_thread = threading.Thread(target=start_server, args=(host, port))
     server_thread.start()
-
+    
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
     server_thread.join()
     flask_thread.join()
-
+    
     print("Server has been shut down.")
