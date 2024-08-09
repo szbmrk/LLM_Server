@@ -79,21 +79,18 @@ def handle_server_message(client, message):
         model = data["model"]
         prompt = data["prompt"]
         context = data["context"]
+        n = data["n"]
+        temp = data["temp"]
 
         models_path = os.getenv('MODELS_PATH')
         llamacpp_path = os.getenv(f'LLAMACPP_PATH_{platform.system()}')
 
-        """"
         if models_path and llamacpp_path:
-            command = f"{llamacpp_path} -m {models_path}/{model} -p \"{prompt}\" -c \"{context}\" -n 50 --temp 0.1 --repeat_penalty 1.1"
+            command = f"{llamacpp_path} -m {models_path}/{model} -p \"{prompt}\" -c \"{context}\" -n {n} --temp {temp} --repeat_penalty 1.1"
             
             result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             response["answer"] = result.stdout if result.returncode == 0 else result.stderr
             response["status"] = "Success" if result.returncode == 0 else "Error"
-        """
-        time.sleep(2)
-        response["answer"] = "Success"
-        response["status"] = "Success"
 
     except (subprocess.CalledProcessError, Exception) as e:
         response["answer"] = f"Error: {e}"

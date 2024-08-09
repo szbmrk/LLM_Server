@@ -51,16 +51,18 @@ def handle_client(client):
                 print(f"Client {client_info} removed from clients list")
         client.client_socket.close()
 
-def send_message_to_client(client, model, prompt, context):
+def send_message_to_client(client, model, data):
     client_socket = client.client_socket
     client_info = client.client_info
 
     with client.send_lock:
         try:
             message = json.dumps({
-                "model": model,
-                "prompt": prompt,
-                "context": context,
+                "model": data['model'],
+                "prompt": data['prompt'],
+                "context": data['context'],
+                "n": data['n'],
+                "temp": data['temp']
             })
 
             client_socket.sendall(message.encode('utf-8'))
@@ -133,11 +135,18 @@ def get_clients():
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
+    data_to_send = {}
     prompt = data.get('prompt')
     context = data.get('context')
+    n = data.get('n')
+    temp = data.get('temp')
+    data_to_send['prompt'] = prompt
+    data_to_send['context'] = context
+    data_to_send['n'] = n
+    data_to_send['temp'] = temp
     with clients_lock:
         if clients:
-            response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], prompt, context)
+            response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], data_to_send)
             return jsonify({"status": "Message sent", "response": response}), 200
         else:
             return jsonify({"status": "No clients connected"}), 400
