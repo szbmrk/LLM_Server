@@ -66,7 +66,7 @@ def send_message_to_client(client, data):
             })
 
             client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {client_info}: {message}")
+            print(f"Sent message to {data['model']}: {message}")
 
             try:
                 response = client.recv_queue.get(timeout=60)
