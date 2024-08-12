@@ -51,7 +51,7 @@ def handle_client(client):
                 print(f"Client {client_info} removed from clients list")
         client.client_socket.close()
 
-def send_message_to_client(client, model, data):
+def send_message_to_client(client, data):
     client_socket = client.client_socket
     client_info = client.client_info
 
@@ -140,13 +140,14 @@ def api_send_message():
     context = data.get('context')
     n = data.get('n')
     temp = data.get('temp')
+    data_to_send['model'] = clients[0].client_info["models"][0]["filename"]
     data_to_send['prompt'] = prompt
     data_to_send['context'] = context
     data_to_send['n'] = n
     data_to_send['temp'] = temp
     with clients_lock:
         if clients:
-            response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], data_to_send)
+            response = send_message_to_client(clients[0], data_to_send)
             return jsonify({"status": "Message sent", "response": response}), 200
         else:
             return jsonify({"status": "No clients connected"}), 400
