@@ -82,6 +82,7 @@ def handle_server_message(client, message):
         n = data["n"]
         temp = data["temp"]
 
+        """
         models_path = os.getenv('MODELS_PATH')
         llamacpp_path = os.getenv(f'LLAMACPP_PATH_{platform.system()}')
 
@@ -91,10 +92,14 @@ def handle_server_message(client, message):
             result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             response["answer"] = result.stdout if result.returncode == 0 else result.stderr
             response["status"] = "Success" if result.returncode == 0 else "Error"
-
+        """
     except (subprocess.CalledProcessError, Exception) as e:
         response["answer"] = f"Error: {e}"
 
+
+    time.sleep(2)
+    response["answer"] = "This is a test response"
+    response["status"] = "Success"
     print(f"Sending response to server:\n{response}")
     client.send(json.dumps(response).encode('utf-8'))
 
