@@ -39,7 +39,7 @@ class Client:
 
     def set_client_info(self, client_info):
         self.client_info = client_info
-        self.models = [Model(model["filename"], model["tokens", model["difficulty"]]) for model in client_info["models"]]
+        self.models = [Model(model["filename"], model["tokens"], model["difficulty"]) for model in client_info["models"]]
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
