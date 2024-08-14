@@ -7,7 +7,6 @@ from flask import Flask, jsonify, request
 app = Flask(__name__)
 
 clients = []
-clients_lock = threading.Lock()
 server_running = threading.Event()
 
 class Client:
@@ -15,7 +14,6 @@ class Client:
         self.client_address = None
         self.client_socket = None
         self.client_info = None
-        self.send_lock = threading.Lock()
         self.recv_queue = queue.Queue()
 
     def set_client_info(self, client_info):
@@ -45,44 +43,41 @@ def handle_client(client):
                 print(f"Socket error with {client_info}: {e}")
                 break
     finally:
-        with clients_lock:
-            if client in clients:
-                clients.remove(client)
-                print(f"Client {client_info} removed from clients list")
+        if client in clients:
+            clients.remove(client)
+            print(f"Client {client_info} removed from clients list")
         client.client_socket.close()
 
 def send_message_to_client(client, data):
     client_socket = client.client_socket
     client_info = client.client_info
 
-    with client.send_lock:
+    try:
+        message = json.dumps({
+            "model": data['model'],
+            "prompt": data['prompt'],
+            "context": data['context'],
+            "n": data['n'],
+            "temp": data['temp']
+        })
+
+        client_socket.sendall(message.encode('utf-8'))
+        print(f"Sent message to {data['model']}: {message}")
+
         try:
-            message = json.dumps({
-                "model": data['model'],
-                "prompt": data['prompt'],
-                "context": data['context'],
-                "n": data['n'],
-                "temp": data['temp']
-            })
+            response = client.recv_queue.get(timeout=60)
+            print(f"{client_info}: {response}")
+            return json.loads(response)
+        except queue.Empty:
+            print(f"Timeout while waiting for response from {client_info}")
+            return { "status": "Timeout" }
 
-            client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {data['model']}: {message}")
-
-            try:
-                response = client.recv_queue.get(timeout=60)
-                print(f"{client_info}: {response}")
-                return json.loads(response)
-            except queue.Empty:
-                print(f"Timeout while waiting for response from {client_info}")
-                return { "status": "Timeout" }
-
-        except (socket.error, Exception) as e:
-            print(f"Error sending message to {client_info}: {e}")
-            with clients_lock:
-                if client in clients:
-                    clients.remove(client)
-                    print(f"Client {client_info} removed from clients list due to error")
-            return { "status": "Error" }
+    except (socket.error, Exception) as e:
+        print(f"Error sending message to {client_info}: {e}")
+        if client in clients:
+            clients.remove(client)
+            print(f"Client {client_info} removed from clients list due to error")
+        return { "status": "Error" }
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -106,9 +101,8 @@ def start_server(host, port):
             print(f"Error: {e}")
             break
     
-    with clients_lock:
-        for client in clients:
-            client.client_socket.close()
+    for client in clients:
+        client.client_socket.close()
     
     server.close()
     print("Server closed.")
@@ -121,18 +115,15 @@ def handle_incoming_client_info(client_socket, client_address):
     client.set_client_socket(client_socket)
     client.set_client_address(client_address)
     
-    with clients_lock:
-        clients.append(client)
+    clients.append(client)
     
     return client
 
 @app.route('/clients', methods=['GET'])
 def get_clients():
-    with clients_lock:
-        clients_list = [client.client_info for client in clients]
+    clients_list = [client.client_info for client in clients]
     return jsonify(clients_list)
 
-@app.route('/send_message', methods=['POST'])
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
@@ -148,15 +139,19 @@ def api_send_message():
     data_to_send['temp'] = temp
     print("AAA")
 
+    result_queue = queue.Queue()
     def send_message_task():
-        with clients_lock:
-            if clients:
-                print("BBB")
-                response = send_message_to_client(clients[0], data_to_send)
-                return jsonify({"status": "Message sent", "response": response}), 200
+        if clients:
+            print("BBB")
+            response = send_message_to_client(clients[0], data_to_send)
+            result_queue.put(response)
 
     thread = threading.Thread(target=send_message_task)
     thread.start()
+    thread.join()
+
+    response = result_queue.get()
+    return jsonify({"status": "Message sent", "response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
