@@ -3,29 +3,12 @@ import threading
 import json
 import queue
 from flask import Flask, jsonify, request
-from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 
 clients = []
 clients_lock = threading.Lock()
 server_running = threading.Event()
-
-class Model:
-    def __init__(self, filename, tokens, difficulty):
-        self.filename = filename
-        self.tokens = tokens
-        self.difficulty = difficulty
-        self.free = True
-        self.lock = threading.Lock()
-
-    def set_busy(self):
-        with self.lock:
-            self.free = False
-
-    def set_free(self):
-        with self.lock:
-            self.free = True
 
 class Client:
     def __init__(self):
@@ -34,12 +17,9 @@ class Client:
         self.client_info = None
         self.send_lock = threading.Lock()
         self.recv_queue = queue.Queue()
-        self.executor = ThreadPoolExecutor(max_workers=10)
-        self.models = []
 
     def set_client_info(self, client_info):
         self.client_info = client_info
-        self.models = [Model(model["filename"], model["tokens"], model["difficulty"]) for model in client_info["models"]]
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
@@ -59,19 +39,8 @@ def handle_client(client):
                 if not data:
                     print(f"Client {client_info} disconnected")
                     break
-                response = data.decode('utf-8')
-                print(f"Received data from {client_info}: {response}")
-                client.recv_queue.put(response)
-                
-                # Set the model back to free
-                response_json = json.loads(response)
-                model_filename = response_json.get('model')
-                if model_filename:
-                    for model in client.models:
-                        if model.filename == model_filename:
-                            model.set_free()
-                            print(f"Model {model_filename} set back to free")
-                            break
+                print(f"Received data from {client_info}: {data.decode('utf-8')}")
+                client.recv_queue.put(data.decode('utf-8'))
             except socket.error as e:
                 print(f"Socket error with {client_info}: {e}")
                 break
@@ -81,7 +50,6 @@ def handle_client(client):
                 clients.remove(client)
                 print(f"Client {client_info} removed from clients list")
         client.client_socket.close()
-        client.executor.shutdown(wait=False)
 
 def send_message_to_client(client, model, data):
     client_socket = client.client_socket
@@ -89,11 +57,16 @@ def send_message_to_client(client, model, data):
 
     with client.send_lock:
         try:
-            message = json.dumps(data)
+            message = json.dumps({
+                "model": data['model'],
+                "prompt": data['prompt'],
+                "context": data['context'],
+                "n": data['n'],
+                "temp": data['temp']
+            })
+
             client_socket.sendall(message.encode('utf-8'))
-            print(f"Sent message to {data['model']}: {message}")
-            model.set_busy()
-            print(f"Model {model.filename} set to busy")
+            print(f"Sent message to {client_info}: {message}")
 
             try:
                 response = client.recv_queue.get(timeout=60)
@@ -101,17 +74,15 @@ def send_message_to_client(client, model, data):
                 return json.loads(response)
             except queue.Empty:
                 print(f"Timeout while waiting for response from {client_info}")
-                model.set_free()
-                return {"status": "Timeout"}
+                return { "status": "Timeout" }
 
         except (socket.error, Exception) as e:
             print(f"Error sending message to {client_info}: {e}")
-            model.set_free()
             with clients_lock:
                 if client in clients:
                     clients.remove(client)
                     print(f"Client {client_info} removed from clients list due to error")
-            return {"status": "Error"}
+            return { "status": "Error" }
 
 def start_server(host, port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -158,45 +129,29 @@ def handle_incoming_client_info(client_socket, client_address):
 @app.route('/clients', methods=['GET'])
 def get_clients():
     with clients_lock:
-        clients_list = [{
-            "info": client.client_info,
-            "models": [{"filename": model.filename, "free": model.free} for model in client.models]
-        } for client in clients]
+        clients_list = [client.client_info for client in clients]
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
+    data_to_send = {}
     prompt = data.get('prompt')
     context = data.get('context')
     n = data.get('n')
     temp = data.get('temp')
-
+    data_to_send['prompt'] = prompt
+    data_to_send['context'] = context
+    data_to_send['n'] = n
+    data_to_send['temp'] = temp
+    print("AAAA")
     with clients_lock:
-        if not clients:
+        if clients:
+            print("BBBB")
+            response = send_message_to_client(clients[0], clients[0].client_info["models"][0]["filename"], data_to_send)
+            return jsonify({"status": "Message sent", "response": response}), 200
+        else:
             return jsonify({"status": "No clients connected"}), 400
-
-        free_models = []
-        for client in clients:
-            free_models.extend([(client, model) for model in client.models if model.free])
-
-        if not free_models:
-            return jsonify({"status": "No free models available"}), 400
-
-        futures = []
-        for client, model in free_models:
-            data_to_send = {
-                'model': model.filename,
-                'prompt': prompt,
-                'context': context,
-                'n': n,
-                'temp': temp
-            }
-            future = client.executor.submit(send_message_to_client, client, model, data_to_send)
-            futures.append(future)
-
-        responses = [future.result() for future in futures]
-        return jsonify({"status": "Messages sent", "responses": responses}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
