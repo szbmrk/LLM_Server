@@ -145,6 +145,7 @@ def api_send_message():
     data_to_send['context'] = context
     data_to_send['n'] = n
     data_to_send['temp'] = temp
+    print("POSTING MSG")
     with clients_lock:
         if clients:
             response = send_message_to_client(clients[0], data_to_send)
