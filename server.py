@@ -43,7 +43,7 @@ class Client:
                 if message:
                     with self.send_lock:
                         self.client_socket.sendall(message.encode('utf-8'))
-                        print(f"Sent message to {self.client_info['model']}: {message}")
+                        print(f"Sent message")
             except queue.Empty:
                 continue
 
