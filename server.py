@@ -148,20 +148,15 @@ def api_send_message():
     data_to_send['temp'] = temp
     print("AAA")
 
-    result_queue = queue.Queue()
     def send_message_task():
         with clients_lock:
             if clients:
                 print("BBB")
                 response = send_message_to_client(clients[0], data_to_send)
-                result_queue.put(response)
+                return jsonify({"status": "Message sent", "response": response}), 200
 
     thread = threading.Thread(target=send_message_task)
     thread.start()
-    thread.join()
-
-    response = result_queue.get()
-    return jsonify({"status": "Message sent", "response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
