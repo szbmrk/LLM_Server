@@ -133,6 +133,7 @@ def get_clients():
     return jsonify(clients_list)
 
 @app.route('/send_message', methods=['POST'])
+@app.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.json
     data_to_send = {}
@@ -146,13 +147,20 @@ def api_send_message():
     data_to_send['n'] = n
     data_to_send['temp'] = temp
     print("AAA")
-    with clients_lock:
-        if clients:
-            print("BBB")
-            response = send_message_to_client(clients[0], data_to_send)
-            return jsonify({"status": "Message sent", "response": response}), 200
-        else:
-            return jsonify({"status": "No clients connected"}), 400
+
+    def send_message_task():
+        with clients_lock:
+            if clients:
+                print("BBB")
+                response = send_message_to_client(clients[0], data_to_send)
+                return response
+
+    thread = threading.Thread(target=send_message_task)
+    thread.start()
+    thread.join()
+    response = thread.result
+    return jsonify({"status": "Message sent", "response": response}), 200
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
