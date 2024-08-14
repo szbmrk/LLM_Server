@@ -137,12 +137,10 @@ def api_send_message():
     data_to_send['context'] = context
     data_to_send['n'] = n
     data_to_send['temp'] = temp
-    print("AAA")
 
     result_queue = queue.Queue()
     def send_message_task():
         if clients:
-            print("BBB")
             response = send_message_to_client(clients[0], data_to_send)
             result_queue.put(response)
 
