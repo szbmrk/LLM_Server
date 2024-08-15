@@ -79,7 +79,11 @@ def send_message_to_client(client, data):
             "temp": data['temp']
         })
 
-        model = client.models.find(lambda model: model.filename == data['model'])
+        model = None
+        for m in client.models:
+            if m.filename == data['model']:
+                model = m
+                break
 
         client_socket.sendall(message.encode('utf-8'))
         print(f"Sent message to {data['model']}: {message}")
