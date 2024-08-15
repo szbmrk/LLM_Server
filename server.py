@@ -6,6 +6,22 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
+class Model:
+    def __init__(self, filename, tokens, difficulty):
+        self.filename = filename
+        self.tokens = None
+        self.difficulty = None
+        self.free = True
+        self.lock = threading.Lock()
+
+    def set_busy(self):
+        with self.lock:
+            self.free = False
+
+    def set_free(self):
+        with self.lock:
+            self.free = True
+
 clients = []
 server_running = threading.Event()
 
@@ -14,10 +30,12 @@ class Client:
         self.client_address = None
         self.client_socket = None
         self.client_info = None
+        self.models = []
         self.recv_queue = queue.Queue()
 
     def set_client_info(self, client_info):
         self.client_info = client_info
+        self.models = [Model(model["filename"], model["tokens"], model["difficulty"]) for model in client_info["models"]]
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
@@ -61,15 +79,20 @@ def send_message_to_client(client, data):
             "temp": data['temp']
         })
 
+        model = client.models.find(lambda model: model.filename == data['model'])
+
         client_socket.sendall(message.encode('utf-8'))
         print(f"Sent message to {data['model']}: {message}")
+        model.set_busy()
 
         try:
             response = client.recv_queue.get(timeout=60)
             print(f"{client_info}: {response}")
+            model.set_free()
             return json.loads(response)
         except queue.Empty:
             print(f"Timeout while waiting for response from {client_info}")
+            model.set_free()
             return { "status": "Timeout" }
 
     except (socket.error, Exception) as e:
@@ -141,7 +164,7 @@ def api_send_message():
     result_queue = queue.Queue()
     def send_message_task():
         if clients:
-            response = send_message_to_client(clients[0], data_to_send)
+            response = send_message_to_client(clients[0], clients[0].models[0], data_to_send)
             result_queue.put(response)
 
     thread = threading.Thread(target=send_message_task)
