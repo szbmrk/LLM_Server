@@ -164,7 +164,7 @@ def api_send_message():
     result_queue = queue.Queue()
     def send_message_task():
         if clients:
-            response = send_message_to_client(clients[0], clients[0].models[0], data_to_send)
+            response = send_message_to_client(clients[0], data_to_send)
             result_queue.put(response)
 
     thread = threading.Thread(target=send_message_task)
