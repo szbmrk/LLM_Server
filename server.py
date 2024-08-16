@@ -159,7 +159,7 @@ def api_send_message():
     context = data.get('context')
     n = data.get('n')
     temp = data.get('temp')
-    data_to_send['model'] = clients[0].client_info["models"][0]["filename"]
+    data_to_send['model'] = clients[0].models[0]["filename"]
     data_to_send['prompt'] = prompt
     data_to_send['context'] = context
     data_to_send['n'] = n
