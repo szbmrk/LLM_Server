@@ -176,7 +176,7 @@ def api_send_message():
     thread.join()
 
     response = result_queue.get()
-    return jsonify({"status": "Message sent", "response": response}), 200
+    return jsonify({"response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
