@@ -98,13 +98,13 @@ def handle_server_message(client, message):
     client.send(json.dumps(response).encode('utf-8'))
 
 def start_client(server_ip, server_port):
+    total_ram, free_ram = get_ram_info()
+    total_vram, free_vram = get_vram_info()
     while True:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
                 client.connect((server_ip, server_port))
 
-                total_ram, free_ram = get_ram_info()
-                total_vram, free_vram = get_vram_info()
                 models = get_models()
 
                 client_info = {
