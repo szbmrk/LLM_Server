@@ -9,8 +9,8 @@ app = Flask(__name__)
 class Model:
     def __init__(self, filename, tokens, difficulty):
         self.filename = filename
-        self.tokens = None
-        self.difficulty = None
+        self.tokens = tokens
+        self.difficulty = difficulty
         self.free = True
         self.lock = threading.Lock()
 
