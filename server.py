@@ -54,7 +54,9 @@ def handle_client(client):
                 try:
                     json_data = json.loads(data)
                     if "ram_info" in json_data and "vram_info" in json_data:
-                        print(f"Received periodic update from {client.client_info}: RAM: {json_data['ram_info']}, VRAM: {json_data['vram_info']}")
+                        client.client_info["ram_info"] = json_data["ram_info"]
+                        client.client_info["vram_info"] = json_data["vram_info"]
+                        print(f"Updated client info for {client.client_address}: RAM: {json_data['ram_info']}, VRAM: {json_data['vram_info']}")
                     else:
                         client.recv_queue.put(data)
                 except json.JSONDecodeError:
