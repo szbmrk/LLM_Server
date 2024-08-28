@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import psutil
 import threading
 
+# Function to get RAM and VRAM info (same as before)
 def get_size(bytes, suffix="B"):
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
@@ -97,9 +98,25 @@ def handle_server_message(client, message):
     print(f"Sending response to server:\n{response}")
     client.send(json.dumps(response).encode('utf-8'))
 
+def send_ram_vram_info(client):
+    while True:
+        total_ram, free_ram = get_ram_info()
+        total_vram, free_vram = get_vram_info()
+
+        ram_vram_info = {
+            "ram_info": {"total_ram": total_ram, "free_ram": free_ram},
+            "vram_info": {"total_vram": total_vram, "free_vram": free_vram},
+        }
+
+        try:
+            client.send(json.dumps(ram_vram_info).encode('utf-8'))
+        except socket.error as e:
+            print(f"Failed to send RAM/VRAM info: {e}")
+            break
+
+        time.sleep(60)
+
 def start_client(server_ip, server_port):
-    total_ram, free_ram = get_ram_info()
-    total_vram, free_vram = get_vram_info()
     while True:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
@@ -108,12 +125,13 @@ def start_client(server_ip, server_port):
                 models = get_models()
 
                 client_info = {
-                    "ram_info": {"total_ram": total_ram, "free_ram": free_ram},
-                    "vram_info": {"total_vram": total_vram, "free_vram": free_vram},
+                    "ram_info": {"total_ram": get_size(psutil.virtual_memory().total), "free_ram": get_size(psutil.virtual_memory().available)},
+                    "vram_info": {"total_vram": get_size(0), "free_vram": get_size(0)},
                     "models": models,
                 }
 
                 client.send(json.dumps(client_info).encode('utf-8'))
+                threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
                 
                 while True:
                     message = client.recv(1024).decode('utf-8')
