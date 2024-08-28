@@ -117,6 +117,7 @@ def send_ram_vram_info(client):
         time.sleep(60)
 
 def start_client(server_ip, server_port):
+    models = get_models()
     client_info = {
         "ram_info": {"total_ram": get_size(psutil.virtual_memory().total), "free_ram": get_size(psutil.virtual_memory().available)},
         "vram_info": {"total_vram": get_size(0), "free_vram": get_size(0)},
@@ -128,7 +129,6 @@ def start_client(server_ip, server_port):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
                 client.connect((server_ip, server_port))
 
-                models = get_models()
 
                 client.send(json.dumps(client_info).encode('utf-8'))
                 threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
