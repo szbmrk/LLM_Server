@@ -181,6 +181,7 @@ def get_clients():
 
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
+    print(clients.count)
     if clients.count == 0:
         return jsonify({"response": "No clients available", "status": "error"}), 404
     
