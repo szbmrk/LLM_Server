@@ -181,6 +181,8 @@ def get_clients():
 
 @app.route('/send_message', methods=['POST'])
 def api_send_message():
+    if clients.count == 0:
+        return jsonify({"response": "No clients available", "status": "error"}), 404
     data = request.json
     data_to_send = {
         'model': clients[0].models[0].filename,
