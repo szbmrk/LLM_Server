@@ -128,7 +128,7 @@ def start_server(host, port):
 
     while server_running.is_set():
         try:
-            server_socket.settimeout(1.0)
+            server_socket.settimeout(5.0)
             handle_incoming_connection(server_socket)
         except Exception as e:
             print(f"Error: {e}")
@@ -155,7 +155,7 @@ def handle_incoming_connection(server_socket):
         pass
 
 def handle_incoming_client_info(client_socket, client_address):
-    client_info_json = json.loads(client_socket.recv(1024).decode('utf-8'))
+    client_info_json = json.loads(client_socket.recv(4096).decode('utf-8'))
     print(f"Received client info from {client_address}: {client_info_json}")
 
     client = Client()
