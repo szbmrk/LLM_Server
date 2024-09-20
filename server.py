@@ -49,7 +49,6 @@ server_running = threading.Event()
 def handle_client(client):
     try:
         while server_running.is_set():
-            print("valami")
             data = receive_data_from_client(client)
             if data:
                 try:
@@ -129,7 +128,6 @@ def start_server(host, port):
 
     while server_running.is_set():
         try:
-            print("asd")
             server_socket.settimeout(1.0)
             handle_incoming_connection(server_socket)
         except Exception as e:
