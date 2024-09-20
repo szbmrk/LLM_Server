@@ -223,5 +223,6 @@ if __name__ == "__main__":
     host = '0.0.0.0'
     port = 9999
 
+    print("started")
     threading.Thread(target=start_server, args=(host, port)).start()
     threading.Thread(target=run_flask).start()
