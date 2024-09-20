@@ -132,9 +132,9 @@ def start_client(server_ip, server_port):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
                 client.connect((server_ip, server_port))
 
-                print("Connected to server")
-                print(client_info)
+                print(f"Connecting to {server_ip}:{server_port}")
                 client.send(json.dumps(client_info).encode('utf-8'))
+                print("Sent client info:", client_info)
                 #threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
                 
                 while True:
@@ -153,5 +153,5 @@ def start_client(server_ip, server_port):
 if __name__ == "__main__":
     load_dotenv()
     server_ip = '142.93.207.109'
-    server_port = 5000
+    server_port = 9999
     start_client(server_ip, server_port)
