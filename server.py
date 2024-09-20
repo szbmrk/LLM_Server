@@ -150,6 +150,7 @@ def handle_incoming_connection(server_socket):
     try:
         client_socket, client_address = server_socket.accept()
         client = handle_incoming_client_info(client_socket, client_address)
+        print("asd")
         threading.Thread(target=handle_client, args=(client,)).start()
     except socket.timeout:
         pass
