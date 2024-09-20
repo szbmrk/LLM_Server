@@ -196,8 +196,9 @@ def api_send_message():
     }
 
     api_key = data.get('api_key')
-    print(api_key)
-    print(os.getenv('API_KEY'))
+
+    if not api_key:
+        return jsonify({"response": "API key is required", "status": "error"}), 400
 
     if api_key != os.getenv('API_KEY'):
         return jsonify({"response": "Invalid API key", "status": "error"}), 401
