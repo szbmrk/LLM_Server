@@ -129,6 +129,7 @@ def start_server(host, port):
 
     while server_running.is_set():
         try:
+            print("asd")
             server_socket.settimeout(1.0)
             handle_incoming_connection(server_socket)
         except Exception as e:
