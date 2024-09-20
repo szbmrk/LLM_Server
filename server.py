@@ -2,6 +2,8 @@ import socket
 import threading
 import json
 import queue
+from dotenv import load_dotenv
+import os
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -193,6 +195,11 @@ def api_send_message():
         'temp': data.get('temp')
     }
 
+    api_key = data.get('api_key')
+
+    if api_key != os.getenv('API_KEY'):
+        return jsonify({"response": "Invalid API key", "status": "error"}), 401
+
     response = send_message_to_first_client(data_to_send)
     return jsonify({"response": response}), 200
 
@@ -219,6 +226,8 @@ def run_flask():
     app.run(host='0.0.0.0', port=5000)
 
 if __name__ == "__main__":
+    load_dotenv()
+
     host = '0.0.0.0'
     port = 9999
 
