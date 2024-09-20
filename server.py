@@ -49,6 +49,7 @@ server_running = threading.Event()
 def handle_client(client):
     try:
         while server_running.is_set():
+            print("valami")
             data = receive_data_from_client(client)
             if data:
                 try:
@@ -150,7 +151,6 @@ def handle_incoming_connection(server_socket):
     try:
         client_socket, client_address = server_socket.accept()
         client = handle_incoming_client_info(client_socket, client_address)
-        print("asd")
         threading.Thread(target=handle_client, args=(client,)).start()
     except socket.timeout:
         pass
@@ -223,6 +223,5 @@ if __name__ == "__main__":
     host = '0.0.0.0'
     port = 9999
 
-    print("started")
     threading.Thread(target=start_server, args=(host, port)).start()
     threading.Thread(target=run_flask).start()
