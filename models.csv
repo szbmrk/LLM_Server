@@ -2,3 +2,6 @@ filename;tokens;difficulty
 Meta-Llama-3-8B-Instruct.Q2_K.gguf;8 B;hard
 Meta-Llama-2-8B-Instruct.Q2_K.gguf;8 B;hard
 Meta-Llama-3-8B.Q4_K_M.gguf;70 B;medium
+gemma-2-27b-it-IQ3_M.gguf;8192;medium
+gemma-2-9b-it-Q4_K_M.gguf;8192;medium
+Meta-Llama-3.1-8B-Instruct-Q8_0.gguf;8192;medium
