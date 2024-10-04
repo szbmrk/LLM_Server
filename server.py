@@ -28,6 +28,10 @@ class Model:
         with self.lock:
             self.free = True
 
+    def is_free(self):
+        with self.lock:
+            return self.free
+
 class Client:
     def __init__(self):
         self.client_address = None
@@ -51,6 +55,28 @@ class Client:
 
 clients = []
 server_running = threading.Event()
+
+def calculate_model_score(model, weights):
+    score = (model.coding * weights['coding'] +
+             model.reasoning * weights['reasoning'] +
+             model.creativity * weights['creativity'] +
+             model.speed * weights['speed'])
+    return score
+
+def select_best_model_for_prompt():
+    best_model = None
+    best_score = -1
+    weights = {'coding': 0.5, 'reasoning': 0.5, 'creativity': 0.25, 'speed': 0.25}
+
+    for client in clients:
+        for model in client.models:
+            if model.is_free():
+                score = calculate_model_score(model, weights)
+                if score > best_score:
+                    best_model = model
+                    best_score = score
+
+    return best_model
 
 def handle_client(client):
     try:
@@ -86,13 +112,9 @@ def receive_data_from_client(client):
         print(f"Socket error with {client.client_info}: {e}")
         return None
 
-def send_message_to_client(client, data):
+def send_message_to_client(client, model, data):
     try:
-        model = find_model(client, data['model'])
-        if not model:
-            return {"status": "Model not found"}
-
-        message = create_message(data)
+        message = create_message(data, model.filename)
         client.client_socket.sendall(message.encode('utf-8'))
         print(f"Sent message to {client.client_info}: {message}")
 
@@ -106,15 +128,9 @@ def send_message_to_client(client, data):
         remove_client(client)
         return {"status": "Error"}
 
-def find_model(client, model_filename):
-    for model in client.models:
-        if model.filename == model_filename:
-            return model
-    return None
-
-def create_message(data):
+def create_message(data, model_filename):
     return json.dumps({
-        "model": data['model'],
+        "model": model_filename,
         "prompt": data['prompt'],
         "context": data['context'],
         "n": data['n'],
@@ -127,6 +143,40 @@ def wait_for_response(client):
     except queue.Empty:
         print(f"Timeout while waiting for response from {client.client_info}")
         return None
+
+@app.route('/send_message', methods=['POST'])
+def api_send_message():
+    if len(clients) == 0:
+        return jsonify({"response": "No clients available", "status": "error"}), 404
+    
+    data = request.json
+    best_model = select_best_model_for_prompt(data)
+
+    if not best_model:
+        return jsonify({"response": "No suitable models available", "status": "error"}), 404
+
+    data_to_send = {
+        'prompt': data.get('prompt'),
+        'context': data.get('context'),
+        'n': data.get('n'),
+        'temp': data.get('temp')
+    }
+
+    api_key = data.get('api_key')
+
+    if not api_key:
+        return jsonify({"response": "API key is required", "status": "error"}), 400
+
+    if api_key != os.getenv('API_KEY'):
+        return jsonify({"response": "Invalid API key", "status": "error"}), 401
+
+    response = send_message_to_client(clients[0], best_model, data_to_send)
+    return jsonify({"response": response}), 200
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    server_running.clear()
+    return jsonify({"status": "Server is shutting down..."}), 200
 
 def start_server(host, port):
     server_socket = setup_server_socket(host, port)
@@ -180,54 +230,6 @@ def remove_client(client):
 def close_all_clients():
     for client in clients:
         client.client_socket.close()
-
-@app.route('/clients', methods=['GET'])
-def get_clients():
-    return jsonify([client.client_info for client in clients])
-
-@app.route('/send_message', methods=['POST'])
-def api_send_message():
-    if len(clients) == 0:
-        return jsonify({"response": "No clients available", "status": "error"}), 404
-    
-    data = request.json
-    data_to_send = {
-        'model': clients[0].models[0].filename,
-        'prompt': data.get('prompt'),
-        'context': data.get('context'),
-        'n': data.get('n'),
-        'temp': data.get('temp')
-    }
-
-    api_key = data.get('api_key')
-
-    if not api_key:
-        return jsonify({"response": "API key is required", "status": "error"}), 400
-
-    if api_key != os.getenv('API_KEY'):
-        return jsonify({"response": "Invalid API key", "status": "error"}), 401
-
-    response = send_message_to_first_client(data_to_send)
-    return jsonify({"response": response}), 200
-
-def send_message_to_first_client(data_to_send):
-    result_queue = queue.Queue()
-
-    def send_message_task():
-        if clients:
-            response = send_message_to_client(clients[0], data_to_send)
-            result_queue.put(response)
-
-    thread = threading.Thread(target=send_message_task)
-    thread.start()
-    thread.join()
-
-    return result_queue.get()
-
-@app.route('/shutdown', methods=['POST'])
-def shutdown():
-    server_running.clear()
-    return jsonify({"status": "Server is shutting down..."}), 200
 
 def run_flask():
     app.run(host='0.0.0.0', port=5000)
