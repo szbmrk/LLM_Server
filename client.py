@@ -60,7 +60,9 @@ def get_models():
     if path and os.path.exists(path):
         for model in os.listdir(path):
             if model.endswith(".gguf"):
-                models.append(get_model_info_from_filename(model))
+                model = get_model_info_from_filename(model)
+                if model != "":
+                    models.append(model)
     return models
 
 def get_model_info_from_filename(filename):
@@ -69,7 +71,7 @@ def get_model_info_from_filename(filename):
             data = line.strip().split(";")
             if data[0] == filename:
                 return {"filename": data[0], "tokens": data[1], "difficulty": data[2]}
-    return {"filename": filename, "tokens": "", "difficulty": ""}
+    return ""
 
 def handle_server_message(client, message):
     response = {"answer": "No response", "status": "Error"}
@@ -134,7 +136,7 @@ def start_client(server_ip, server_port):
                 print(f"Connecting to {server_ip}:{server_port}")
                 client.send(json.dumps(client_info).encode('utf-8'))
                 print("Sent client info:", client_info)
-                #threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
+                threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
                 
                 while True:
                     message = client.recv(1024).decode('utf-8')
