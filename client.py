@@ -136,7 +136,7 @@ def start_client(server_ip, server_port):
                 print(f"Connecting to {server_ip}:{server_port}")
                 client.send(json.dumps(client_info).encode('utf-8'))
                 print("Sent client info:", client_info)
-                threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
+                #threading.Thread(target=send_ram_vram_info, args=(client,), daemon=True).start()
                 
                 while True:
                     message = client.recv(1024).decode('utf-8')
