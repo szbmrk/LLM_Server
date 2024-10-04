@@ -144,7 +144,7 @@ def wait_for_response(client):
         print(f"Timeout while waiting for response from {client.client_info}")
         return None
 
-@app.rout('/clients', methods=['GET'])
+@app.route('/clients', methods=['GET'])
 def api_clients():
     return jsonify([client.client_info for client in clients]), 200
 
