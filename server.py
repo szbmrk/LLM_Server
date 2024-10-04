@@ -63,6 +63,8 @@ def select_best_model_for_prompt(data):
     temp = data.get('temp')
     
     best_model = None
+    best_client = None
+
     best_score = -1
 
     context_weight = 0.3
@@ -82,10 +84,11 @@ def select_best_model_for_prompt(data):
                 score += (model.reasoning if prompt_length > 100 else model.coding) * prompt_weight
 
                 if score > best_score:
+                    best_client = client
                     best_model = model
                     best_score = score
 
-    return best_model
+    return best_model, best_client
 
 
 def handle_client(client):
@@ -168,7 +171,7 @@ def api_send_message():
         return jsonify({"response": "No models available", "status": "error"}), 404
 
     data = request.json
-    best_model = select_best_model_for_prompt(data)
+    best_model, client = select_best_model_for_prompt(data)
 
     if not best_model:
         return jsonify({"response": "No suitable models available", "status": "error"}), 404
@@ -188,7 +191,7 @@ def api_send_message():
     if api_key != os.getenv('API_KEY'):
         return jsonify({"response": "Invalid API key", "status": "error"}), 401
 
-    response = send_message_to_client(clients[0], best_model, data_to_send)
+    response = send_message_to_client(client, best_model, data_to_send)
     return jsonify({"response": response}), 200
 
 @app.route('/shutdown', methods=['POST'])
