@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 import psutil
 import threading
 
-# Function to get RAM and VRAM info (same as before)
 def get_size(bytes, suffix="B"):
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
