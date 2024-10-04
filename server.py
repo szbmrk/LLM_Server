@@ -231,7 +231,7 @@ def run_flask():
 if __name__ == "__main__":
     load_dotenv()
 
-    host = '0.0.0.0'
+    host = '142.93.207.109'
     port = 9999
 
     threading.Thread(target=start_server, args=(host, port)).start()
