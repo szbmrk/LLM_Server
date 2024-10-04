@@ -168,7 +168,7 @@ def api_send_message():
         return jsonify({"response": "No models available", "status": "error"}), 404
 
     data = request.json
-    best_model = select_best_model_for_prompt()
+    best_model = select_best_model_for_prompt(data)
 
     if not best_model:
         return jsonify({"response": "No suitable models available", "status": "error"}), 404
