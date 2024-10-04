@@ -9,10 +9,14 @@ from flask import Flask, jsonify, request
 app = Flask(__name__)
 
 class Model:
-    def __init__(self, filename, tokens, difficulty):
+    def __init__(self, filename, file_size, context_window, coding, reasoning, creativity, speed):
         self.filename = filename
-        self.tokens = tokens
-        self.difficulty = difficulty
+        self.file_size = file_size
+        self.context_window = context_window
+        self.coding = coding
+        self.reasoning = reasoning
+        self.creativity = creativity
+        self.speed = speed
         self.free = True
         self.lock = threading.Lock()
 
@@ -34,7 +38,7 @@ class Client:
 
     def set_client_info(self, client_info):
         self.client_info = client_info
-        self.models = [Model(model["filename"], model["tokens"], model["difficulty"]) for model in client_info["models"]]
+        self.models = [Model(model["filename"], model["file_size"], model["context_window"], model["coding"], model["reasoning"], model["creativity"], model["speed"]) for model in client_info["models"]]
 
     def set_client_socket(self, client_socket):
         self.client_socket = client_socket
@@ -231,7 +235,7 @@ def run_flask():
 if __name__ == "__main__":
     load_dotenv()
 
-    host = '142.93.207.109'
+    host = '0.0.0.0'
     port = 8080
 
     threading.Thread(target=start_server, args=(host, port)).start()

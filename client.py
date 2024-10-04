@@ -70,7 +70,11 @@ def get_model_info_from_filename(filename):
         for line in f:
             data = line.strip().split(";")
             if data[0] == filename:
-                return {"filename": data[0], "tokens": data[1], "difficulty": data[2]}
+                file_size = os.path.getsize(f"{os.getenv('MODELS_PATH')}/{filename}")
+                file_size_in_gb = get_size(file_size)
+                return {"filename": data[0], "file_size": file_size_in_gb,
+                        "context_window": data[1], "coding": data[2],
+                        "reasoning": data[3], "creativity": data[4], "speed": data[5]}
     return ""
 
 def handle_server_message(client, message):

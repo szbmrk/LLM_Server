@@ -1,7 +1,7 @@
-filename;tokens;difficulty
-Meta-Llama-3-8B-Instruct.Q2_K.gguf;8 B;hard
-Meta-Llama-2-8B-Instruct.Q2_K.gguf;8 B;hard
-Meta-Llama-3-8B.Q4_K_M.gguf;70 B;medium
-gemma-2-27b-it-IQ3_M.gguf;8192;medium
-gemma-2-9b-it-Q4_K_M.gguf;8192;medium
-Meta-Llama-3.1-8B-Instruct-Q8_0.gguf;8192;medium
+filename;context_window;coding;reasoning;creativity;speed
+Meta-Llama-3-8B-Instruct.Q2_K.gguf;2048;0.85;0.80;0.78;0.70
+Meta-Llama-2-8B-Instruct.Q2_K.gguf;2048;0.82;0.79;0.76;0.68
+Meta-Llama-3-8B.Q4_K_M.gguf;4096;0.78;0.77;0.75;0.71
+gemma-2-27b-it-IQ3_M.gguf;4096;0.89;0.85;0.82;0.77
+gemma-2-9b-it-Q4_K_M.gguf;4096;0.81;0.80;0.78;0.72
+Meta-Llama-3.1-8B-Instruct-Q8_0.gguf;2048;0.83;0.81;0.79;0.73
