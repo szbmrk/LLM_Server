@@ -56,27 +56,37 @@ class Client:
 clients = []
 server_running = threading.Event()
 
-def calculate_model_score(model, weights):
-    score = (model.coding * weights['coding'] +
-             model.reasoning * weights['reasoning'] +
-             model.creativity * weights['creativity'] +
-             model.speed * weights['speed'])
-    return score
-
-def select_best_model_for_prompt():
+def select_best_model_for_prompt(data):
+    prompt = data.get('prompt')
+    context = data.get('context')
+    n = data.get('n')
+    temp = data.get('temp')
+    
     best_model = None
     best_score = -1
-    weights = {'coding': 0.5, 'reasoning': 0.5, 'creativity': 0.25, 'speed': 0.25}
+
+    context_weight = 0.3
+    n_weight = 0.2
+    temp_weight = 0.3
+    prompt_weight = 0.2
 
     for client in clients:
         for model in client.models:
             if model.is_free():
-                score = calculate_model_score(model, weights)
+                score = 0
+                context_length = len(context) if context else 0
+                score += (min(model.context_window, context_length) / max(model.context_window, context_length)) * context_weight
+                score += model.speed * n_weight * (1 / max(1, n))
+                score += model.creativity * temp_weight * temp
+                prompt_length = len(prompt) if prompt else 0
+                score += (model.reasoning if prompt_length > 100 else model.coding) * prompt_weight
+
                 if score > best_score:
                     best_model = model
                     best_score = score
 
     return best_model
+
 
 def handle_client(client):
     try:
@@ -153,8 +163,12 @@ def api_send_message():
     if len(clients) == 0:
         return jsonify({"response": "No clients available", "status": "error"}), 404
     
+    total_model_count = sum([len(client.models) for client in clients])
+    if total_model_count == 0:
+        return jsonify({"response": "No models available", "status": "error"}), 404
+
     data = request.json
-    best_model = select_best_model_for_prompt(data)
+    best_model = select_best_model_for_prompt()
 
     if not best_model:
         return jsonify({"response": "No suitable models available", "status": "error"}), 404
