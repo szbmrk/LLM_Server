@@ -232,7 +232,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     host = '142.93.207.109'
-    port = 9999
+    port = 8080
 
     threading.Thread(target=start_server, args=(host, port)).start()
     threading.Thread(target=run_flask).start()

@@ -154,5 +154,5 @@ def start_client(server_ip, server_port):
 if __name__ == "__main__":
     load_dotenv()
     server_ip = '142.93.207.109'
-    server_port = 80
+    server_port = 8080
     start_client(server_ip, server_port)
